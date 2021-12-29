@@ -1,0 +1,41 @@
+name: StarAPI_
+version: 1.0
+api: 
+- 3.0.0
+main: DeathStar\Star\Main
+author: DeathStar
+commands:
+    viewstar:
+        description: xem star người chơi khác
+    topstar:
+        permission: star.top
+        description: Xếp hạng Star
+    paystar:
+        permission: star.pay
+        description: Chuyển Star
+    star:
+        permission: star.mystar
+        description: xem Star
+    setstar:
+        permission: star.setstar
+        description: chỉnh sửa số coin của người chơi
+    givestar:
+        permission: star.addstar
+        description: Thêm star cho người chơi
+    restar:
+        permission: star.delete
+        description: Xóa star của người chơi
+permissions:
+    star.top:
+        default: true
+    star.pay:
+       default: true
+    star.mystar:
+        default: true
+    star.addstar:
+        default: op
+    star.addstar:
+        default: op
+    star.delete:
+        default: op
+        

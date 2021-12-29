@@ -1,0 +1,221 @@
+---
+Guest:
+  alias: gst
+  isDefault: true
+  inheritance: []
+  permissions:
+  - essentialstp.comamnd.warp.a
+  - essentialstp.warp.a
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pocketmine.command.time
+  - pperms.command.ppinfo
+  - simplewarp.warp.a
+  worlds: []
+Admin:
+  alias: adm
+  inheritance:
+  - Guest
+  permissions:
+  - essentials.gamemode
+  - pocketmine.broadcast
+  - pocketmine.command.gamemode
+  - pocketmine.command.give
+  - pocketmine.command.kick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  worlds: []
+Owner:
+  alias: owr
+  inheritance:
+  - Admin
+  permissions:
+  - essentials
+  - pocketmine.command
+  - pperms.command
+  worlds: []
+OP:
+  alias: op
+  inheritance: []
+  permissions:
+  - '*'
+  worlds: []
+VIP1:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - fly1.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pperms.command.ppinfo
+  worlds: []
+VIP2:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - essentialstp.command.warp
+  - essentialstp.command.warp.*
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pperms.command.ppinfo
+  worlds: []
+VIP3:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.nick
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - essentialstp.command.warp
+  - essentialstp.command.warp.*
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pocketmine.command.teleport
+  - pperms.command.ppinfo
+  worlds: []
+VIP4:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.nick
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - essentialstp.command.warp
+  - essentialstp.command.warp.*
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pocketmine.command.teleport
+  - pperms.command.ppinfo
+  worlds: []
+Police:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.nick
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - fly.command
+  - pocketmine.command.kick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  worlds: []
+Helper:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - fly1.command
+  - pocketmine.command.kick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  worlds: []
+Builder:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.gamemode.use
+  - essentials.home
+  - essentials.home.*
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - essentialstp.command.warp
+  - essentialstp.command.warp.*
+  - fly.command
+  - pocketmine.command.gamemode
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  worlds: []
+PMem:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - essentialstp.command.home
+  - essentialstp.command.home.*
+  - essentialstp.command.warp
+  - essentialstp.command.warp.*
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  - pperms.command.ppinfo
+  worlds: []
+Youtube:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.home
+  - essentials.home.*
+  - essentials.sethome
+  - essentials.tpa
+  - essentials.tpaccept
+  - essentials.tpadeny
+  - essentials.tphere
+  - essentialstp.command.home
+  - essentialstp.command.home.*
+  - essentialstp.command.warp
+  - essentialstp.command.warp.*
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pocketmine.command.teleport
+  - pperms.command.ppinfo
+  worlds: []
+...

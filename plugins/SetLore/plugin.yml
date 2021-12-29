@@ -1,0 +1,14 @@
+name: CItem
+main: LLEEN\Citem
+version: 1.0
+api: [3.0.0]
+author: LLEEN
+commands:
+ setname:
+  description: "SetName"
+ setlore:
+  description: "SetLore"
+ dellore:
+  description: "Dellore"
+ addlore:
+  description: "Add Lore"

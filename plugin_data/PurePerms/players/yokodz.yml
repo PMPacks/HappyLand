@@ -1,0 +1,11 @@
+---
+userName: YokoDz
+group: Guest
+permissions:
+- we.commands.pos
+- we.commands.wand
+- we.commands.admin
+worlds: []
+time: -1
+expTime: -1
+...

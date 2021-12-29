@@ -1,0 +1,71 @@
+---
+version: 1.4.10-6
+default-factions-plugin: FactionsPro
+enable-multiworld-chat: false
+groups:
+  Guest:
+    chat: §e[§a{fac_rank}{fac_name}§e] §b✿§c…§fMember§c…§b✿ §f{display_name} §b→ {msg}
+    nametag: §e[§a{fac_rank}{fac_name}§e] §b✿§c…§fMember§c…§b✿ §f{display_name}
+    worlds: []
+  Admin:
+    chat: §e[§a{fac_rank}{fac_name}§e] §9♚§6…§eAdmin§6…§9♚ §f{display_name} §e→ §l{msg}
+    nametag: '&a[Admin]&e {fac_rank}{fac_name} &6{display_name}'
+    worlds: []
+  Owner:
+    chat: §e[§a{fac_rank}{fac_name}§e] §9✿§6…§eOwner§6…§9✿ §f{display_name} §e→ §l{msg}
+    nametag: §e[§a{fac_rank}{fac_name}§e] §9✿§6…§eOwner§6…§9✿ §f{display_name}
+    worlds: []
+  OP:
+    chat: §e[§a{fac_rank}{fac_name}§e] §9✿§6…§eOP§6…§9✿ §f{display_name} §e→ §l{msg}
+    nametag: §e[§a{fac_rank}{fac_name}§e] §9✿§6…§eOP§6…§9✿ §f{display_name}
+    worlds: []
+  Builder:
+    chat: §e[§a{fac_rank}{fac_name}§e] §d★§c…§eBuilder§c…§d★ §f{display_name} §e→
+      {msg}
+    nametag: §e[§a{fac_rank}{fac_name}§e] §d★§c…§eBuilder§c…§d★ §f{display_name}
+    worlds: []
+  Police:
+    chat: §e[§a{fac_rank}{fac_name}§e] §d★§c…§bPolice§c…§d★ §f{display_name} §b→ {msg}
+    nametag: §e[§a{fac_rank}{fac_name}§e] §d★§c…§bPolice§c…§d★ §f{display_name}
+    worlds: []
+  Helper:
+    chat: §e[§a{fac_rank}{fac_name}§e] §c❖§f…§eHelper§f…§c❖ §f{display_name} §d→ {msg}
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c❖§f…§eHelper§f…§c❖ §f{display_name}
+    worlds: []
+  VIP1:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-I§f…§c♥ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-I§f…§c♥ §f{display_name} §e➺ {msg}
+    worlds: []
+  VIP2:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-II§f…§c♥ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-II§f…§c♥ §f{display_name} §e➺ {msg}
+    worlds: []
+  VIP3:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-III§f…§c♥ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-III§f…§c♥ §f{display_name} §e➺
+      {msg}
+    worlds: []
+  VIP4:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-IV§f…§c♥ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-IV§f…§c♥ §f{display_name} §e➺ {msg}
+    worlds: []
+  VIP5:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-V§f…§c♥ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §c♥§f…§eϑ¡ρ-V§f…§c♥ §f{display_name} §e➺ {msg}
+    worlds: []
+  Youtube:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §c♪§f…§cYou§fTuber™§f…§c♪ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §c♪§f…§cYou§fTuber™§f…§c♪ §f{display_name}
+      §c→ {msg}
+    worlds: []
+  PMem:
+    nametag: §e[§a{fac_rank}{fac_name}§e] §a♪…§ePro-Member§a…♪ §f{display_name}
+    chat: §e[§a{fac_rank}{fac_name}§e] §a♪…§ePro-Member§a…♪ §f{display_name} §a→ {msg}
+    worlds: []
+  CC:
+    nametag: '&8&l[CC]&f&r {display_name}'
+    chat: '&8&l[CC]&f&r {display_name} &7> {msg}'
+  ThienAnxinhgai:
+    nametag: '&8&l[ThienAnxinhgai]&f&r {display_name}'
+    chat: '&8&l[ThienAnxinhgai]&f&r {display_name} &7> {msg}'
+...

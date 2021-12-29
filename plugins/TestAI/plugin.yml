@@ -1,0 +1,7 @@
+name: MyPvE
+main: soradore\ai\main
+version: 1.0
+api: 4.0.0
+load: POSTWORLD
+author: soradore
+description:

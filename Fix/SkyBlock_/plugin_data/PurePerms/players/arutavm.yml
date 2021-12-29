@@ -1,0 +1,45 @@
+---
+userName: ArutaVM
+group: Member
+permissions:
+- fly.command
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- pocketmine.command
+- pperms.command
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+- '*'
+worlds: []
+time: -1
+expTime: -1
+...

@@ -1,0 +1,125 @@
+PocketMine-MP Crash Dump Mon Dec 24 22:49:52 WIB 2018
+
+Error: Class 'pocketmine\network\mcpe\protocol\LevelSoundEventPacketV1' not found
+File: src/pocketmine/network/mcpe/protocol/PacketPool
+Line: 57
+Type: Error
+
+Code:
+[48] 		static::registerPacket(new AddItemEntityPacket());
+[49] 		static::registerPacket(new AddHangingEntityPacket());
+[50] 		static::registerPacket(new TakeItemEntityPacket());
+[51] 		static::registerPacket(new MoveEntityAbsolutePacket());
+[52] 		static::registerPacket(new MovePlayerPacket());
+[53] 		static::registerPacket(new RiderJumpPacket());
+[54] 		static::registerPacket(new UpdateBlockPacket());
+[55] 		static::registerPacket(new AddPaintingPacket());
+[56] 		static::registerPacket(new ExplodePacket());
+[57] 		static::registerPacket(new LevelSoundEventPacketV1());
+[58] 		static::registerPacket(new LevelEventPacket());
+[59] 		static::registerPacket(new BlockEventPacket());
+[60] 		static::registerPacket(new EntityEventPacket());
+[61] 		static::registerPacket(new MobEffectPacket());
+[62] 		static::registerPacket(new UpdateAttributesPacket());
+[63] 		static::registerPacket(new InventoryTransactionPacket());
+[64] 		static::registerPacket(new MobEquipmentPacket());
+[65] 		static::registerPacket(new MobArmorEquipmentPacket());
+[66] 		static::registerPacket(new InteractPacket());
+[67] 		static::registerPacket(new BlockPickRequestPacket());
+
+Backtrace:
+#0 src/pocketmine/network/Network(55): pocketmine\network\mcpe\protocol\PacketPool::init()
+#1 src/pocketmine/Server(1612): pocketmine\network\Network->__construct(pocketmine\Server object)
+#2 src/pocketmine/PocketMine(249): pocketmine\Server->__construct(BaseClassLoader object, pocketmine\utils\MainLogger object, string C:\Users\Administrator\Desktop\AURAKINGDOM-Network\SkyBlock_\, string C:\Users\Administrator\Desktop\AURAKINGDOM-Network\SkyBlock_\plugins\)
+
+PocketMine-MP version: 3.5.2 [Protocol 313]
+Git commit: 0000000000000000000000000000000000000000
+uname -a: Windows NT WIN-VCQUKKDO8FH 6.3 build 9600 (Windows Server 2012 R2 Datacenter Edition) AMD64
+PHP Version: 7.2.2
+Zend version: 3.2.0
+OS : WINNT, win
+
+----------------------REPORT THE DATA BELOW THIS LINE-----------------------
+
+===BEGIN CRASH DUMP===
+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
+iF4qNGkbAD+tGjUrv/76P01xh4g=
+===END CRASH DUMP===

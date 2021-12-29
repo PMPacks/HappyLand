@@ -1,0 +1,7 @@
+name: JoinItems
+main: MF\JI
+version: 1.0
+author: MaxFreeze
+api: [3.0.0, 3.1.0, 4.0.0]
+description: akaja
+load: POSTWORLD

@@ -1,0 +1,23 @@
+main: awzaw\antispampro\AntiSpamPro
+api: [3.0.0]
+load: POSTWORLD
+name: AntiSpamPro
+description: "AntiSpamPro"
+version: 1.4.1
+author: awzaw
+commands:
+ asp:
+  permission: asp.command
+  description: "Change AntiSpamPro Settings"
+  usage: "/asp [help || kick || ban || set <cooldown in secs)>]"
+permissions:
+  asp:
+   default: op
+   description: "Allows access to all ASP commands and bypass filter"
+   children:
+    asp.command:
+     default: op
+     description: "Allows access to all ASP commands"
+    asp.bypass:
+     default: op
+     description: "Allows user to bypass ASP filter"

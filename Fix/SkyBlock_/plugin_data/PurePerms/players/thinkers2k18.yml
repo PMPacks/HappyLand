@@ -1,0 +1,14 @@
+---
+userName: ThinkerS2k18
+group: Guest
+permissions:
+- pocketmine.command.kick
+- snoop.command
+- pocketmine.command.effect
+- invsee.inventory
+- pocketmine.command.ban
+- pocketmine.command.pardon
+worlds: []
+time: -1
+expTime: -1
+...

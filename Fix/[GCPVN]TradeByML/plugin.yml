@@ -1,0 +1,10 @@
+name: TradeByML
+main: AmGM\quy
+version: 2.5.0
+author: Team-GCP
+api: 3.0.0
+description: Plugin Trade By MiLuc
+commands:
+  doicup:
+   description: Doi do bang diem Mi Luc
+   default: true

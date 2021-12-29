@@ -1,0 +1,512 @@
+name: AutoInv
+author: JackNoordhuis
+description: Limits the amount of item entities in your server by adding item drops straight to entities inventories
+version: 0.0.10
+main: jacknoordhuis\autoinv\AutoInv
+api: [3.0.0]<?php
+
+/**
+ * AutoInv.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv;
+
+use jacknoordhuis\autoinv\event\EventManager;
+use jacknoordhuis\autoinv\util\config\EventConfigurationLoader;
+use pocketmine\plugin\PluginBase;
+
+class AutoInv extends PluginBase {
+
+	/** @var EventManager */
+	public $eventManager;
+
+	/** @var EventConfigurationLoader */
+	private $eventConfigLoader;
+
+	const SETTINGS_CONFIG = "Settings.yml";
+
+	public function onEnable() {
+		$this->saveResource(self::SETTINGS_CONFIG);
+		$this->setEventManager();
+		$this->eventConfigLoader = new EventConfigurationLoader($this, $this->getDataFolder() . self::SETTINGS_CONFIG);
+	}
+
+	public function getEventConfigurationLoader() : EventConfigurationLoader {
+		return $this->eventConfigLoader;
+	}
+
+	public function setEventManager() : bool {
+		if(!($this->eventManager instanceof EventManager)) {
+			$this->eventManager = new EventManager($this);
+			return true;
+		}
+		return false;
+	}
+
+	public function getEventManager() : ?EventManager {
+		return $this->eventManager;
+	}
+
+}###  AutoInv v0.0.10 configuration file  ###
+general:
+  events:
+    # Add block drops directly to players' inventories?
+    block-break: true
+    # Add players inventory contents directly to their last attackers inventory on death?
+    player-death: false
+    # Add non-player entity drops directly to their last attackers inventory on death?
+    entity-death: false
+    # Add explosion drops directly to the nearest entities inventory?
+    entity-explosion: false
+    # Inventory full alerts
+    inventory-full:
+        active: true # Should we alert players when their inventory is full?
+        interval: 5 # Minimum time in seconds between inventory full messages
+        message:
+                text: "&bInventory full!" # Message (leave blank to disable)
+                secondary-text: "&7Clear some room in your inventory to keep collecting resources!" # Only used for titles
+                type: "title" # Message, tip, popup, title
+        sound: true # Play a sound?<?php
+
+/**
+ * EventManager.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv\event;
+
+use jacknoordhuis\autoinv\AutoInv;
+use pocketmine\plugin\MethodEventExecutor;
+
+class EventManager {
+
+	/** @var AutoInv */
+	private $plugin;
+
+	/** @var EventHandler[] */
+	private $eventHandlers;
+
+	public function __construct(AutoInv $plugin) {
+		$this->plugin = $plugin;
+	}
+
+	/**
+	 * @return AutoInv
+	 */
+	public function getPlugin() : AutoInv {
+		return $this->plugin;
+	}
+
+	/**
+	 * Register an event handler
+	 *
+	 * @param EventHandler $handler
+	 */
+	public function registerHandler(EventHandler $handler) {
+		$this->eventHandlers[] = $handler;
+
+		foreach($handler->handles() as $eventClass => $handleFunc) {
+			$this->plugin->getLogger()->debug("Registered " . (new \ReflectionClass($eventClass))->getShortName() . " for " . (new \ReflectionObject($handler))->getShortName() . "::" . $handleFunc);
+			$this->plugin->getServer()->getPluginManager()->registerEvent($eventClass, $handler, $handler->getEventPriority(), new MethodEventExecutor($handleFunc), $this->plugin, $handler->ignoreCancelled());
+		}
+	}
+
+}<?php
+
+/**
+ * EventConfigurationLoader.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv\util\config;
+
+use jacknoordhuis\autoinv\event\handle\BlockBreakPickup;
+use jacknoordhuis\autoinv\event\handle\EntityDeathPickup;
+use jacknoordhuis\autoinv\event\handle\EntityExplosionPickup;
+use jacknoordhuis\autoinv\event\handle\InventoryFullAlert;
+use jacknoordhuis\autoinv\event\handle\PlayerDeathPickup;
+use pocketmine\utils\TextFormat;
+
+class EventConfigurationLoader extends ConfigurationLoader {
+
+	public function onLoad(array $data) {
+		$manager = $this->getPlugin()->getEventManager();
+		$eventData = $data["general"]["events"];
+
+		if(self::getBoolean($eventData["block-break"] ?? false)) {
+			$manager->registerHandler(new BlockBreakPickup($manager));
+		}
+
+		if(self::getBoolean($eventData["player-death"] ?? false)) {
+			$manager->registerHandler(new PlayerDeathPickup($manager));
+		}
+
+		if(self::getBoolean($eventData["entity-death"] ?? false)) {
+			$manager->registerHandler(new EntityDeathPickup($manager));
+		}
+
+		if(self::getBoolean($eventData["entity-explosion"] ?? false)) {
+			$manager->registerHandler(new EntityExplosionPickup($manager));
+		}
+
+		if((($inventoryData = $eventData["inventory-full"]) ?? false) and self::getBoolean($inventoryData["active"])) {
+			$manager->registerHandler(new InventoryFullAlert($manager, $inventoryData["interval"], TextFormat::colorize($inventoryData["message"]["text"] ?? ""), TextFormat::colorize($inventoryData["message"]["secondary-text"] ?? ""), strtolower($inventoryData["message"]["type"] ?? "message"), $inventoryData["sound"] ?? false));
+		}
+	}
+
+}<?php
+
+/**
+ * ConfigurationLoader.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv\util\config;
+
+use jacknoordhuis\autoinv\AutoInv;
+use pocketmine\utils\Config;
+
+/**
+ * Basic class to help manage configuration values
+ */
+abstract class ConfigurationLoader {
+
+	/** @var AutoInv */
+	private $plugin;
+
+	/** @var string */
+	private $path;
+
+	/** @var array */
+	private $data;
+
+	public function __construct(AutoInv $plugin, string $path) {
+		$this->plugin = $plugin;
+		$this->path = $path;
+		$this->loadData();
+		$this->onLoad($this->data);
+	}
+
+	public function getPlugin() : AutoInv {
+		return $this->plugin;
+	}
+
+	final public function loadData() {
+		$this->data = (new Config($this->path))->getAll(); // use pocketmine config class to detect file type and parse into array
+	}
+
+	final public function saveData(bool $async = true) {
+		$config = new Config($this->path);
+		$config->setAll($this->data);
+		$config->save($async);
+	}
+
+	final public function reloadData() {
+		$this->saveData(false);
+		$this->loadData();
+	}
+
+	/**
+	 * Called when the config is loaded
+	 *
+	 * @param array $data
+	 */
+	abstract protected function onLoad(array $data);
+
+	/**
+	 * Retrieve a boolean value
+	 *
+	 * @param string|int $value
+	 *
+	 * @return bool
+	 */
+	public static function getBoolean($value) : bool {
+		if(is_bool($value)) {
+			return $value;
+		}
+
+		switch(is_string($value) ? strtolower($value) : $value) {
+			case "off":
+			case "false":
+			case "no":
+			case 0:
+				return false;
+		}
+
+		return true;
+	}
+
+}<?php
+
+/**
+ * BlockBreakPickup.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv\event\handle;
+
+use jacknoordhuis\autoinv\event\EventHandler;
+use pocketmine\event\block\BlockBreakEvent;
+use pocketmine\event\EventPriority;
+
+class BlockBreakPickup extends EventHandler {
+
+	public function handles() : array {
+		return [
+			BlockBreakEvent::class => "handleBlockBreak",
+		];
+	}
+
+	/**
+	 * Handle automatic block pickup on break
+	 *
+	 * @param BlockBreakEvent $event
+	 */
+	public function handleBlockBreak(BlockBreakEvent $event) : void {
+		foreach($event->getDrops() as $drop) {
+			$event->getPlayer()->getInventory()->addItem($drop);
+		}
+		$event->setDrops([]);
+	}
+
+	public function getEventPriority() : int {
+		return EventPriority::HIGHEST;
+	}
+
+}<?php
+
+/**
+ * EventHandler.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv\event;
+
+use pocketmine\event\EventPriority;
+use pocketmine\event\Listener;
+
+/**
+ * Basic class for all event handlers to extend
+ */
+abstract class EventHandler implements Listener {
+
+	/** @var EventManager */
+	private $manager;
+
+	public function __construct(EventManager $manager) {
+		$this->manager = $manager;
+	}
+
+	public function getManager() : ?EventManager {
+		return $this->manager;
+	}
+
+	/**
+	 * Returns an array of events that the handler handles
+	 *
+	 * @return string[]
+	 */
+	abstract public function handles() : array;
+
+	/**
+	 * Returns the priority of the event handler
+	 *
+	 * @return int
+	 */
+	public function getEventPriority() : int {
+		return EventPriority::NORMAL;
+	}
+
+	/**
+	 * Returns whether the handler should be called if the event is cancelled
+	 *
+	 * @return bool
+	 */
+	public function ignoreCancelled() : bool {
+		return true;
+	}
+
+}<?php
+
+/**
+ * InventoryFullAlert.php – AutoInv
+ *
+ * Copyright (C) 2015-2018 Jack Noordhuis
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Jack Noordhuis
+ *
+ */
+
+namespace jacknoordhuis\autoinv\event\handle;
+
+use jacknoordhuis\autoinv\event\EventHandler;
+use jacknoordhuis\autoinv\event\EventManager;
+use pocketmine\event\block\BlockBreakEvent;
+use pocketmine\event\EventPriority;
+use pocketmine\event\player\PlayerQuitEvent;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\Player;
+
+class InventoryFullAlert extends EventHandler {
+
+	/** @var int */
+	private $alertInterval;
+
+	/** @var string */
+	private $text;
+
+	/** @var string */
+	private $secondaryText;
+
+	/** @var string */
+	private $messageType;
+
+	/** @var bool */
+	private $playSound;
+
+	/** @var array */
+	private $recentAlerts = [];
+
+	public function __construct(EventManager $manager, int $alertInterval = 5, string $text = "", string $secondaryText = "", string $messageType = "title", bool $playSound = true) {
+		$this->alertInterval = $alertInterval;
+		$this->text = $text;
+		$this->secondaryText = $secondaryText;
+		$this->messageType = $messageType;
+		$this->playSound = $playSound;
+		parent::__construct($manager);
+	}
+
+	public function handles() : array {
+		return [
+			BlockBreakEvent::class => "handleBlockBreak",
+			PlayerQuitEvent::class => "handlePlayerQuit",
+		];
+	}
+
+	/**
+	 * Handle inventory full alerts on block break
+	 *
+	 * @param BlockBreakEvent $event
+	 */
+	public function handleBlockBreak(BlockBreakEvent $event) : void {
+		$player = $event->getPlayer();
+		foreach($event->getDrops() as $drop) {
+			if(!$player->getInventory()->canAddItem($drop)) {
+				$this->alert($player);
+				break; // only alert the player once
+			}
+		}
+	}
+
+	/**
+	 * Handle removing recent alerts on player quit
+	 *
+	 * @param PlayerQuitEvent $event
+	 */
+	public function handlePlayerQuit(PlayerQuitEvent $event) {
+		if(isset($this->recentAlerts[$hash = spl_object_hash($event->getPlayer())])) {
+			unset($this->recentAlerts[$hash]);
+		}
+	}
+
+	/**
+	 * Send inventory full alert to a player
+	 *
+	 * @param Player $player
+	 */
+	protected function alert(Player $player) {
+		if(!isset($this->recentAlerts[$hash = spl_object_hash($player)]) or (isset($this->recentAlerts[$hash]) and ($time = microtime(true)) - $this->recentAlerts[$hash] >= $this->alertInterval)) {
+			$this->recentAlerts[$hash] = $time ?? microtime(true);
+
+			switch($this->messageType) {
+				case "":
+					break; // allow blank to disable message alert
+				case "message":
+					$player->sendMessage($this->text);
+					break;
+				case "popup":
+					$player->sendPopup($this->text);
+					break;
+				case "tip":
+					$player->sendTip($this->text);
+					break;
+				default:
+					$player->addTitle($this->text, $this->secondaryText);
+					break;
+			}
+
+			if($this->playSound) {
+				$pk = new LevelEventPacket();
+				$pk->position = $player->asVector3();
+				$pk->evid = LevelEventPacket::EVENT_SOUND_ENDERMAN_TELEPORT;
+				$pk->data = 0;
+				$player->dataPacket($pk);
+			}
+		}
+	}
+
+	public function getEventPriority() : int {
+		return EventPriority::HIGH;
+	}
+
+}

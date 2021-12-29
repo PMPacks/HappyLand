@@ -1,0 +1,238 @@
+---
+Guest:
+  alias: gst
+  isDefault: true
+  inheritance: []
+  permissions:
+  - -essentials.kit
+  - -essentials.kit.other
+  - -pocketmine.command.me
+  - essentials.warp
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  - votereward
+  - votereward.command.vote
+  worlds: []
+Owner:
+  alias: owr
+  inheritance:
+  - Admin
+  permissions:
+  - essentials
+  - pocketmine.command
+  - pperms.command
+  worlds: []
+OP:
+  alias: op
+  inheritance: []
+  permissions:
+  - '*'
+  worlds: []
+Member:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fly.cmd
+  - fly.command
+  worlds: []
+Builder:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.gamemode
+  - fix.cmd
+  - fly.cmd
+  - fly.command
+  - pocketmine.command.gamemode
+  - pocketmine.command.kick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  - pocketmine.command.time.set
+  - pocketmine.command.tp
+  - pocketmine.command.weather
+  - simplewarp.command.warp
+  worlds: []
+YT:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fly.cmd
+  - fly.command
+  - pocketmine.command.teleport
+  - pocketmine.command.tp
+  - pocketmine.command.warp
+  - wingfire.command.wing
+  worlds: []
+VIP1:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fly.cmd
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  - votereward
+  - votereward.command.vote
+  worlds:
+    sky:
+      isDefault: false
+      permissions:
+      - pocketmine.command.fly
+VIP2:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fly.cmd
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.nick
+  - pocketmine.command.teleport
+  - pocketmine.command.tp
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  - votereward
+  - votereward.command.vote
+  worlds: []
+VIP3:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fix.cmd
+  - fly.cmd
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.nick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  - pocketmine.command.time.set
+  - pocketmine.command.tp
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  - votereward
+  - votereward.command.vote
+  worlds: []
+VIP4:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fly.cmd
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.nick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  - pocketmine.command.time.set
+  - pocketmine.command.tp
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  - votereward
+  - votereward.command.vote
+  - wingfire.command.wing
+  worlds: []
+VIP5:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.warp
+  - fly.cmd
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.kick
+  - pocketmine.command.nick
+  - pocketmine.command.size
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  - pocketmine.command.time.set
+  - pocketmine.command.tp
+  - pocketmine.command.weather
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  - votereward
+  - votereward.command.vote
+  - wingfire.command.wing
+  worlds: []
+VIP6:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - firewing.command.wing
+  - firewings.command.angel
+  - firewings.command.wing
+  - fix.cmd
+  - fly.cmd
+  - fly.command
+  - pocketmine.command.kick
+  - pocketmine.command.nick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  - pocketmine.command.time.set
+  - pocketmine.command.tp
+  - pocketmine.command.weather
+  - wingfire.command.wing
+  worlds: []
+MemberS:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - essentials.kit
+  - essentials.kit.other
+  - essentials.warp
+  - essentialtp.command.tp
+  - fly.command
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.fly
+  - pocketmine.command.teleport
+  - pocketmine.command.tp
+  - pperms.command.ppinfo
+  - simplewarp.command.warp
+  worlds: []
+TrieuDinh0:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions: []
+  worlds: []
+QuyToc:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions: []
+  worlds: []
+rickkid:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions: []
+  worlds: []
+Police:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions: []
+  worlds: []
+...

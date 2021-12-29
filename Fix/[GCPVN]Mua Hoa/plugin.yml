@@ -1,0 +1,9 @@
+name: MuaHoa
+main: GCPVN\MuaHoa
+version: 2.5.0
+author: Team-GCP
+api: 3.0.0
+description: Plugin Mua Hoacommands:
+  muahoa:
+   description: "Mua Hoa"
+   default: true

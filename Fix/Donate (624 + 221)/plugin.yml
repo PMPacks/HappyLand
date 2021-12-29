@@ -1,0 +1,9 @@
+name: Donate-ZoidMC
+version: 1.0BETA
+api: 3.0.0
+author: ZoidMC
+main: DZoidMC\DZoid
+commands:
+ javhd.net: 
+  description: Wrong Command
+  default: true

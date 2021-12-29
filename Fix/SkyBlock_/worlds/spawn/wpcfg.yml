@@ -1,0 +1,7 @@
+---
+pvp: false
+banitem:
+  8: Water
+  325: Bucket
+protect: lock
+...

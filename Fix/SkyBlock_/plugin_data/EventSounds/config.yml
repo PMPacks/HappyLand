@@ -1,0 +1,28 @@
+# Don't make any changes in configVersion because it is used internally
+ConfigVersion: 2
+
+# Here you can edit the sound ID and who can hear it for each event.
+# Sound IDs can be found in soundsIDs.txt .
+# At the heardby : 1 = Event caller (single player). 2 = Everyone except the caller. 3 = All the players
+
+PlayerLoginEvent:
+  sound: 0
+  heardby: 3
+PlayerJoinEvent:
+  sound: 2
+  heardby: 3
+PlayerQuitEvent:
+  sound: 2
+  heardby: 3
+PlayerChatEvent:
+  sound: 10
+  heardby: 2
+PlayerDeathEvent:
+  sound: 17
+  heardby: 3
+PlayerGameModeChangeEvent:
+  sound: 3
+  heardby: 2
+PlayerTransferEvent:
+  sound: 19
+  heardby: 2

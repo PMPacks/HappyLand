@@ -1,0 +1,2270 @@
+<?php
+namespace falkirks\simplewarp;
+
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\command\AddWarpCommand;
+use falkirks\simplewarp\command\CloseWarpCommand;
+use falkirks\simplewarp\command\DelWarpCommand;
+use falkirks\simplewarp\command\essentials\EssentialsDelWarpCommand;
+use falkirks\simplewarp\command\essentials\EssentialsWarpCommand;
+use falkirks\simplewarp\command\ListWarpsCommand;
+use falkirks\simplewarp\command\OpenWarpCommand;
+use falkirks\simplewarp\command\WarpCommand;
+use falkirks\simplewarp\command\WarpReportCommand;
+use falkirks\simplewarp\lang\TranslationManager;
+use falkirks\simplewarp\store\YAMLStore;
+use falkirks\simplewarp\utils\ChecksumVerify;
+use falkirks\simplewarp\utils\DebugDumpFactory;
+use falkirks\simplewarp\utils\SpoonDetector;
+use pocketmine\command\Command;
+use pocketmine\plugin\Plugin;
+use pocketmine\plugin\PluginBase;
+use pocketmine\utils\Config;
+use pocketmine\utils\TextFormat;
+
+class SimpleWarp extends PluginBase{
+    /** @var  SimpleWarpAPI */
+    private $api;
+    /** @var  WarpManager */
+    private $warpManager;
+    /** @var  TranslationManager */
+    private $translationManager;
+    /** @var  DebugDumpFactory */
+    private $debugDumpFactory;
+    /** @var  Command[] */
+    private $commands;
+
+    public function onEnable(){
+        $this->saveDefaultConfig();
+
+        $this->api = new SimpleWarpAPI($this);
+        $this->debugDumpFactory = new DebugDumpFactory($this->api);
+        $this->translationManager = new TranslationManager($this->api, new YAMLStore(new Config($this->getDataFolder() . "lang.yml", Config::YAML)));
+        $this->warpManager = new WarpManager($this->api, new YAMLStore(new Config($this->getDataFolder() . "warps.yml", Config::YAML)), ($this->getConfig()->get('storage-mode') != null ? $this->getConfig()->get('storage-mode') : WarpManager::MEMORY_TILL_CLOSE));
+
+        $this->commands = [
+            new ListWarpsCommand($this->api),
+            new OpenWarpCommand($this->api),
+            new CloseWarpCommand($this->api),
+            new WarpReportCommand($this->api),
+            new AddWarpCommand($this->api)
+        ];
+        if($this->getServer()->getPluginManager()->getPlugin("EssentialsPE") instanceof Plugin && $this->getConfig()->get("essentials-support")){
+            $this->getLogger()->info("Enabling EssentialsPE support...");
+            $warpCommand = $this->getServer()->getCommandMap()->getCommand("warp");
+            $delWarpCommand = $this->getServer()->getCommandMap()->getCommand("delwarp");
+            $this->unregisterCommands([
+                "warp",
+                "delwarp"
+            ]);
+            array_push($this->commands, new EssentialsWarpCommand($this->api, $warpCommand));
+            array_push($this->commands, new EssentialsDelWarpCommand($this->api, $delWarpCommand));
+        }
+        else {
+            array_push($this->commands, new WarpCommand($this->api));
+            array_push($this->commands, new DelWarpCommand($this->api));
+        }
+
+        $this->getServer()->getCommandMap()->registerAll("simplewarp", $this->commands);
+
+        if(file_exists($this->getDataFolder() . ".started") && $this->warpManager->getFlag() === WarpManager::MEMORY_TILL_CLOSE){
+            $this->getLogger()->critical("SimpleWarp is starting in an inconsistent state. This is likely due to a server crash. You are using storage-mode=0 which means you could have lost data. Read more at http://bit.ly/0data");
+        }
+
+        file_put_contents($this->getDataFolder() . ".started", "true");
+        SpoonDetector::printSpoon($this, 'spoon.txt');
+
+        if(ChecksumVerify::isValid($this)){
+            $this->getLogger()->info(TextFormat::LIGHT_PURPLE . "Your copy of SimpleWarp was verified." . TextFormat::RESET);
+        }
+        else{
+            //TODO add negative response (in next version because I don't know if this works)
+        }
+    }
+    public function onDisable(){
+        $this->warpManager->saveAll();
+
+        $this->warpManager = null;
+        $this->api = null;
+        $this->debugDumpFactory = null;
+        $this->translationManager = null;
+
+        @unlink($this->getDataFolder() . ".started");
+        if(file_exists($this->getDataFolder() . ".started")){
+            $this->getLogger()->alert("Unable to clean up session file. You will be shown an error next time you start. You can ignore it.");
+        }
+    }
+
+    /**
+     * @return DebugDumpFactory
+     */
+    public function getDebugDumpFactory(): DebugDumpFactory{
+        return $this->debugDumpFactory;
+    }
+
+
+    /**
+     * @return WarpManager
+     */
+    public function getWarpManager(): WarpManager{
+        return $this->warpManager;
+    }
+
+    /**
+     * @return TranslationManager
+     */
+    public function getTranslationManager(): TranslationManager{
+        return $this->translationManager;
+    }
+
+    /**
+     * @param WarpManager $warpManager
+     */
+    public function setWarpManager(WarpManager $warpManager){
+        $warpManager->saveAll();
+        $this->warpManager = $warpManager;
+    }
+
+    /**
+     * @param TranslationManager $translationManager
+     */
+    public function setTranslationManager(TranslationManager $translationManager){
+        $this->translationManager = $translationManager;
+    }
+
+    /**
+     * @return SimpleWarpAPI
+     */
+    public function getApi(): SimpleWarpAPI{
+        return $this->api;
+    }
+
+    /**
+     * Function to easily disable commands
+     *
+     * @param array $commands
+     */
+    private function unregisterCommands(array $commands){
+        $commandMap = $this->getServer()->getCommandMap();
+        foreach($commands as $label){
+            $command = $commandMap->getCommand($label);
+            $command->setLabel($label . "_disabled");
+            $command->unregister($commandMap);
+        }
+    }
+
+    /**
+     * @return Command[]
+     */
+    public function getCommands(): array {
+        return $this->commands;
+    }
+}<?php
+namespace falkirks\simplewarp\api;
+
+
+use falkirks\simplewarp\Destination;
+use falkirks\simplewarp\lang\TranslationManager;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Warp;
+use falkirks\simplewarp\WarpManager;
+use pocketmine\Player;
+use pocketmine\plugin\PluginBase;
+
+/**
+ * This class provides an API for interacting with
+ * SimpleWarp, whenever possible, use methods from this
+ * class instead of elsewhere.
+ *
+ * This class is highly stable and very unlikely to change.
+ *
+ * Class SimpleWarpAPI
+ * @package falkirks\simplewarp\api
+ */
+class SimpleWarpAPI {
+    /**
+     * @var SimpleWarp
+     */
+    private $plugin;
+
+    /**
+     * SimpleWarpAPI constructor.
+     * @param SimpleWarp $simpleWarp
+     */
+    public function __construct(SimpleWarp $simpleWarp){
+        $this->plugin = $simpleWarp;
+    }
+
+    /**
+     * gets a copy of the SimpleWarp plugin object
+     * @return SimpleWarp
+     */
+    public function getSimpleWarp(): SimpleWarp{
+        return $this->plugin;
+    }
+
+    /**
+     * gets a config option
+     * example SimpleWarpAPI::getConfigItem('display-exact-coordinates')
+     * @param $name
+     * @return string
+     */
+    public function getConfigItem($name): string{
+        return $this->plugin->getConfig()->get($name);
+    }
+
+    /**
+     * @param $name
+     * @param array ...$args
+     * @return string
+     */
+    public function executeTranslationItem($name, ...$args): string{
+        return $this->plugin->getTranslationManager()->execute($name, ...$args);
+    }
+
+    /**
+     * @param $name
+     * @return string
+     */
+    public function getTranslationItem($name): string{
+        return $this->plugin->getTranslationManager()->get($name);
+    }
+
+    /**
+     * Gets a warp object with $name from the current WarpManager
+     * @param $name
+     * @return Warp|null
+     */
+    public function getWarp($name){
+        return $this->getWarpManager()[$name];
+    }
+
+    /**
+     * Adds a new Warp to the WarpManager, will be saved according to storage-mode
+     * @param Warp $warp
+     */
+    public function saveWarp(Warp $warp){
+        $this->getWarpManager()[$warp->getName()] = $warp;
+    }
+
+    /**
+     * Creates a new warp object and saves it.
+     *
+     * @param $name
+     * @param Destination $dest
+     * @param bool $isPublic
+     * @param array $metadata
+     * @return Warp
+     */
+    public function makeWarp($name, Destination $dest, $isPublic = false, $metadata = []){
+        $w = new Warp($this->getWarpManager(), $name, $dest, $isPublic, $metadata);
+        $this->saveWarp($w);
+        return $w;
+    }
+
+    /**
+     * Warps a player to a warp with $name without checking
+     * if the player can use that warp.
+     * @param Player $player
+     * @param $name
+     * @return bool
+     */
+    public function warpPlayerTo(Player $player, $name): bool{
+        $warp = $this->getWarp($name);
+        if($warp instanceof Warp){
+            $warp->teleport($player);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if a player has permission to use a warp
+     * @param Player $player
+     * @param $name
+     * @return bool
+     */
+    public function canPlayerUse(Player $player, $name): bool{
+        $warp = $this->getWarp($name);
+        if($warp instanceof Warp){
+            return $warp->canUse($player);
+        }
+        return null;
+    }
+
+    /**
+     * Returns the TranslationManager
+     * @return TranslationManager
+     */
+    public function getTranslationManager(): TranslationManager{
+        return $this->plugin->getTranslationManager();
+    }
+
+    /**
+     * Sets the TranslationManager
+     * ! Will inject your code into SimpleWarp, potentially breaking !
+     * @param TranslationManager $translationManager
+     */
+    public function setTranslationManager(TranslationManager $translationManager){
+        $this->plugin->setTranslationManager($translationManager);
+    }
+
+    /**
+     * Returns the WarpManager
+     * @return WarpManager
+     */
+    public function getWarpManager(): WarpManager{
+        return $this->plugin->getWarpManager();
+    }
+
+    /**
+     * Sets the WarpManager, the old one's data store will be saved before a new one is added
+     * ! Will inject your code into SimpleWarp, potentially breaking !
+     * @param WarpManager $warpManager
+     */
+    public function setWarpManager(WarpManager $warpManager){
+        $this->plugin->setWarpManager($warpManager);
+    }
+
+    /**
+     * gets whether warp metadata is being saved
+     * you can use metadata regardless, it just won't be saved on restart
+     * @return string
+     */
+    public function isMetadataSaved(){
+        return true;
+    }
+
+    /**
+     * Gets the value of a metadata item on a warp safely
+     * IMPORANT: All plugin metadata keys should be expressed as "namespace-keyname"
+     *           this will avoid potential collisions.
+     *           You can use the provided getSafeMetadataName for this.
+     * @param Warp $warp
+     * @param $key
+     * @return mixed
+     */
+    public function getMetadata(Warp $warp, $key){
+        return $warp->getMetadata($key);
+    }
+
+    /**
+     * Sets the value of a metadata item on a warp safely
+     * IMPORANT: All plugin metadata keys should be expressed as "namespace-keyname"
+     *           this will avoid potential collisions.
+     *           You can use the provided getSafeMetadataName for this.
+     * @param Warp $warp
+     * @param $key
+     * @param $value
+     */
+    public function setMetadata(Warp $warp, $key, $value){
+        $warp->setMetadata($key, $value);
+    }
+
+    /**
+     * Gets warp(s) with the key value pair of metadata as specified
+     *
+     * IMPORANT: All plugin metadata keys should be expressed as "namespace-keyname"
+     *           this will avoid potential collisions.
+     *           You can use the provided getSafeMetadataName for this.
+     * @param $key
+     * @param $value
+     * @return array
+     */
+    public function getWarpsFromMetadata($key, $value): array{
+        $ret = [];
+        foreach ($this->getWarpManager() as $warp){
+            if($warp instanceof Warp && $warp->getMetadata($key) === $value){
+                $ret[] = $warp;
+            }
+        }
+        return $ret;
+    }
+
+    /**
+     * gets a c
+     * @param PluginBase $plugin
+     * @param $key
+     * @return string
+     */
+    public function getSafeMetadataName(PluginBase $plugin, $key){
+        return $plugin->getName() . "-" . $key;
+    }
+
+    /**
+     * Produces true if FastTransfer is loaded and enabled
+     * DEPRECATED!
+     * @deprecated
+     * @return bool
+     */
+    public function isFastTransferLoaded(): bool{
+        return $this->getSimpleWarp()->getServer()->getPluginManager()->getPlugin("FastTransfer") instanceof PluginBase;
+    }
+
+    /**
+     * Returns true if external warps are supported, false otherwise
+     * @return bool
+     */
+    public function supportsExternalWarps(): bool {
+        return method_exists(Player::class, "transfer") || $this->getSimpleWarp()->getServer()->getPluginManager()->getPlugin("FastTransfer") instanceof PluginBase;
+    }
+    /**
+     * This will hopefully save someone typing.
+     * Call SimpleWarpAPI::getInstance($this) from your main class to get the current API instance
+     * @param PluginBase $base
+     * @return SimpleWarpAPI
+     */
+    public static function getInstance(PluginBase $base): SimpleWarpAPI{
+        return $base->getServer()->getPluginManager()->getPlugin("SimpleWarp")->getApi();
+    }
+}
+<?php
+
+namespace falkirks\simplewarp\utils;
+
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+
+class DebugDumpFactory{
+    /** @var  SimpleWarpAPI */
+    private $api;
+
+
+    /**
+     * DebugDump constructor.
+     */
+    public function __construct(SimpleWarpAPI $simpleWarp){
+        $this->api = $simpleWarp;
+    }
+
+
+    public function generate(): string {
+        return implode("\n", [
+            "SERVER VERSION: " . $this->api->getSimpleWarp()->getServer()->getPocketMineVersion(),
+            "API: " . $this->api->getSimpleWarp()->getServer()->getApiVersion(),
+            "MCPE VERSION: " . $this->api->getSimpleWarp()->getServer()->getVersion(),
+            "SOFTWARE: " . $this->api->getSimpleWarp()->getServer()->getName(),
+            "SimpleWarp Version: " . $this->api->getSimpleWarp()->getDescription()->getVersion(),
+            "PLUGINS: " . implode(",", array_keys($this->api->getSimpleWarp()->getServer()->getPluginManager()->getPlugins())),
+            "storage-mode: " . $this->api->getSimpleWarp()->getWarpManager()->getFlag(),
+            "essentials-support: " . ($this->api->getSimpleWarp()->getConfig()->get("essentials-support") ? 'true' : 'false'),
+            json_encode($this->api->getSimpleWarp()->getWarpManager()->getWarps(), JSON_PRETTY_PRINT)
+        ]);
+    }
+
+
+    function __toString(){
+        return $this->generate();
+    }
+
+    /**
+     * @return SimpleWarpAPI
+     */
+    public function getApi(): SimpleWarpAPI{
+        return $this->api;
+    }
+}<?php
+namespace falkirks\simplewarp\lang;
+
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\store\DataStore;
+use falkirks\simplewarp\store\Reloadable;
+use falkirks\simplewarp\store\Saveable;
+use pocketmine\utils\TextFormat;
+
+/**
+ * This class is currently not implemented in any of SimpleWarp's utilities
+ * Class TranslationManager
+ * @package falkirks\simplewarp\lang
+ */
+class TranslationManager {
+    /** @var  SimpleWarpAPI */
+    private $api;
+    /** @var  DataStore */
+    private $store;
+
+    public function __construct(SimpleWarpAPI $api, DataStore $store){
+        $this->api = $api;
+        $this->store = $store;
+        $this->registerDefaults();
+        $this->save();
+
+    }
+    public function get($name){
+        return $this->store->get($name);
+    }
+    public function execute($name, ...$args): string{
+        if($args === null || count($args) === 0){
+            return $this->get($name);
+        }
+        if(is_array($args[0])){
+            $args = $args[0];
+        }
+        return  sprintf($this->get($name), ...$args);
+    }
+    protected function registerDefaults(){
+        $this->registerDefault("addwarp-cmd", "addwarp");
+        $this->registerDefault("addwarp-desc", "Add new warps.");
+        $this->registerDefault("addwarp-usage", "/addwarp <name> [<ip> <port>|<x> <y> <z> <level>|<player>]");
+        $this->registerDefault("addwarp-event-cancelled", "A plugin has cancelled the creation of this warp.");
+
+        $this->registerDefault("closewarp-cmd", "closewarp");
+        $this->registerDefault("closewarp-desc", "Close existing warps.");
+        $this->registerDefault("closewarp-usage", "/closewarp <name>");
+        $this->registerDefault("closewarp-event-cancelled", "A plugin has cancelled this action.");
+
+        $this->registerDefault("delwarp-cmd", "delwarp");
+        $this->registerDefault("delwarp-desc", "Delete existing warps.");
+        $this->registerDefault("delwarp-usage", "/delwarp <name>");
+        $this->registerDefault("delewarp-event-cancelled", "A plugin has cancelled the deletion of this warp.");
+
+        $this->registerDefault("listwarps-cmd", "listwarps");
+        $this->registerDefault("listwarps-desc", "List all your warps.");
+        $this->registerDefault("listwarps-usage", "/listwarps");
+        $this->registerDefault("listwarps-list-title", "Warp list:\n");
+        $this->registerDefault("listwarps-no-warps",  TextFormat::RED . "No warps found." . TextFormat::RESET);
+        $this->registerDefault("listwarps-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("openwarp-cmd", "openwarp");
+        $this->registerDefault("openwarp-desc", "Open existing warps.");
+        $this->registerDefault("openwarp-usage", "/openwarp <name>");
+        $this->registerDefault("delwarp-event-cancelled", "A plugin has cancelled this action.");
+
+        $this->registerDefault("warp-cmd", "warp");
+        $this->registerDefault("warp-desc", "Warp around your world.");
+        $this->registerDefault("warp-usage", "/warp <name> [player]");
+
+        $this->registerDefault("warp-added-xyz", "You have created a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET . " %s");
+        $this->registerDefault("warp-added-player", "You have created a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET . " %s");
+        $this->registerDefault("warp-added-server", "You have created a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET . " %s");
+        $this->registerDefault("warp-added-self", "You have created a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET . " %s");
+
+        $this->registerDefault("level-not-loaded", TextFormat::RED . "You specified a level which isn't loaded.\nPlease see http://bit.ly/levelerror for explanation." . TextFormat::RESET);
+
+        $this->registerDefault("needs-external-warps", "This warp needs " . TextFormat::AQUA . "FastTransfer" . TextFormat::RESET . " or a newer version of PocketMine.");
+
+        $this->registerDefault("player-not-loaded", TextFormat::RED . "You specified a player which isn't loaded." . TextFormat::RESET);
+
+        $this->registerDefault("addwarp-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("bad-warp-name", TextFormat::RED . "That warp name is invalid." . TextFormat::RESET);
+
+        $this->registerDefault("closed-warp-1", "You have closed a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET);
+        $this->registerDefault("closed-warp-2", "  Only players with the permission " . TextFormat::AQUA . "%s" . TextFormat::RESET . " will be able to use this warp.");
+        $this->registerDefault("warp-doesnt-exist", TextFormat::RED . "That warp doesn't exist." . TextFormat::RESET);
+        $this->registerDefault("closewarp-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("warp-deleted", "You have deleted a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET);
+        $this->registerDefault("delwarp-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("opened-warp-1", "You have opened a warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET);
+        $this->registerDefault("opened-warp-2", "  Any player will be able to use this warp.");
+        $this->registerDefault("openwarp-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("warping-popup", "Warping...");
+        $this->registerDefault("other-player-warped", "%s has been warped to " . TextFormat::AQUA . "%s" . TextFormat::RESET . ".");
+        $this->registerDefault("no-permission-warp", TextFormat::RED . "You don't have permission to use this warp." . TextFormat::RESET);
+        $this->registerDefault("no-permission-warp-other", TextFormat::RED . "You don't have permission to warp other players." . TextFormat::RESET);
+        $this->registerDefault("warp-done", "You have been warped");
+        $this->registerDefault("warp-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("level-not-loaded-warp", "The warp you are using is attached to a level which isn't loaded");
+
+        $this->registerDefault("ess-warp-doesnt-exist", TextFormat::RED . "That warp doesn't exist." . TextFormat::RESET);
+        $this->registerDefault("ess-warp-conflict",  "The warp called " . TextFormat::AQUA . "%s" . TextFormat::RESET . " exists in both " . TextFormat::AQUA . "EssentialsPE" . TextFormat::RESET . " and " . TextFormat::AQUA . "SimpleWarp" . TextFormat::RESET . ". The one from " . TextFormat::AQUA . "SimpleWarp" . TextFormat::RESET . " will be used by default. If you wish to use the " . TextFormat::AQUA . "EssentialsPE" . TextFormat::RESET . " warp, prefix the warp name with " . TextFormat::DARK_AQUA . "ess:" . TextFormat::RESET);
+
+        $this->registerDefault("addwarp-ess-prefix-warning", "Support for " . TextFormat::AQUA . "EssentialsPE" . TextFormat::RESET . " is enabled on this server. When a user wants to explicitly use an " . TextFormat::AQUA . "EssentialsPE" . TextFormat::RESET . " warp, they can prefix their command with " . TextFormat::DARK_AQUA . "ess:" . TextFormat::RESET . ". By choosing to pick a warp name that starts with the same prefix, you are making things complicated. Maybe pick a different name?");
+
+        $this->registerDefault("hold-still-popup", "HOLD STILL to WARP.");
+        $this->registerDefault("hold-still-other", "The target must hold still to complete the warp.");
+        $this->registerDefault("hold-still-cancelled", "The warp was unsuccessful because you moved.");
+        $this->registerDefault("hold-still-cancelled-other", "The warp was unsuccessful because the target moved.");
+
+        $this->registerDefault("warp-failed-popup", TextFormat::RED . "Warp failed!" . TextFormat::RESET);
+
+        $this->registerDefault("warpreport-cmd", "warpreport");
+        $this->registerDefault("warpreport-desc", "Report an issue with SimpleWarp.");
+        $this->registerDefault("warpreport-usage", "/warpreport [title]");
+        $this->registerDefault("warpreport-noperm", TextFormat::RED . "You don't have permission to use this command" . TextFormat::RESET);
+
+        $this->registerDefault("plugin-disabled", TextFormat::RED . "SimpleWarp is disabled and can't execute commands." . TextFormat::RESET);
+    }
+    protected function registerDefault($name, $text){
+        if(!$this->store->exists($name)){
+            $this->store->add($name, $text);
+        }
+    }
+    public function reload(){
+        if($this->store instanceof Reloadable){
+            $this->store->reload();
+        }
+    }
+    protected function save(){
+        if($this->store instanceof Saveable){
+            $this->store->save();
+        }
+    }
+
+}
+<?php
+namespace falkirks\simplewarp\store;
+
+
+use pocketmine\utils\Config;
+
+class YAMLStore extends StandardStore implements Saveable, Reloadable{
+    /** @var Config  */
+    private $config;
+    public function __construct(Config $config){
+        $this->config = $config;
+    }
+
+    public function add($name, $warp){
+        $past = $this->config->get($name, null);
+        $this->config->set($name, $warp);
+        $this->config->save();
+        return $past;
+    }
+    public function get($name){
+        return $this->config->get($name, null);
+    }
+
+    public function remove($name){
+        $past = $this->config->get($name, null);
+        $this->config->remove($name);
+        $this->config->save();
+        return $past;
+    }
+
+    public function clear(){
+        $this->config->setAll([]);
+        $this->config->save();
+    }
+
+    public function reload(){
+        $this->config->reload();
+    }
+    /**
+     * Returns something which can be used to iterate
+     * over the store.
+     * @return mixed
+     */
+    public function getIterator(){
+       return $this->config->getAll();
+    }
+
+    public function save(){
+        $this->config->save();
+    }
+
+}<?php
+
+namespace falkirks\simplewarp\store;
+
+
+abstract class StandardStore implements DataStore{
+    public function addAll($warps){
+        foreach($warps as $name => $warp){
+            $this->add($name, $warp);
+        }
+    }
+    public function removeAll($warps){
+        foreach($warps as $warp){
+            $this->remove($warp);
+        }
+    }
+    public function exists($name): bool{
+        return $this->get($name) !== null;
+    }
+
+}<?php
+namespace falkirks\simplewarp\store;
+
+/**
+ * This interface deals with the storage of arbitrary warp
+ * data in a key-value store.
+ *
+ * Interface WarpStore
+ * @package falkirks\simplewarp\store
+ */
+interface DataStore {
+    public function addAll($warps);
+    public function removeAll($warps);
+    public function exists($name);
+
+    /**
+     * This method takes a $name string and a $warp array and
+     * returns the previous value that occupied $name or null.
+     * @param $name
+     * @param $warp
+     * @return mixed
+     */
+    public function add($name, $warp);
+
+    /**
+     * @param $name
+     * @return mixed
+     */
+    public function get($name);
+    public function remove($name);
+    public function clear();
+
+    /**
+     * Returns something which can be used to iterate
+     * over the store.
+     * @return mixed
+     */
+    public function getIterator();
+}<?php
+/**
+ * Created by PhpStorm.
+ * User: noahheyl
+ * Date: 2015-06-04
+ * Time: 8:28 PM
+ */
+
+namespace falkirks\simplewarp\store;
+
+
+interface Saveable extends DataStore{
+    public function save();
+}<?php
+namespace falkirks\simplewarp\store;
+
+
+interface Reloadable extends DataStore{
+    public function reload();
+}<?php
+namespace falkirks\simplewarp;
+
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\store\DataStore;
+use falkirks\simplewarp\store\Reloadable;
+use falkirks\simplewarp\store\Saveable;
+use falkirks\simplewarp\utils\WeakPosition;
+use pocketmine\level\Level;
+use pocketmine\level\Position;
+use pocketmine\network\protocol\DataPacket;
+use pocketmine\utils\TextFormat;
+use Traversable;
+
+class WarpManager implements \ArrayAccess, \IteratorAggregate{
+    const MEMORY_TILL_CLOSE = 0;
+    const FLUSH_ON_CHANGE = 1;
+    /**
+     * This option is pretty scary :(
+     */
+    const NO_MEMORY_STORE = 2;
+
+    /** @var SimpleWarpAPI  */
+    private $api;
+    /** @var DataStore  */
+    private $store;
+
+    /** @var  Warp[] */
+    private $warps;
+
+    private $flag;
+
+    public function __construct(SimpleWarpAPI $api, DataStore $store, $flag = WarpManager::MEMORY_TILL_CLOSE){
+        $this->api = $api;
+        $this->store = $store;
+        $this->flag = $flag;
+        $this->warps = [];
+        if($this->flag < 2){
+            $this->warps = $this->loadWarps();
+        }
+    }
+    protected function reloadStore(){
+        if($this->flag >= 2 && $this->store instanceof Reloadable){
+            $this->store->reload();
+        }
+    }
+    protected function saveStore($force = false){
+        if(($this->flag > 0 || $force) && $this->store instanceof Saveable){
+            $this->store->save();
+        }
+    }
+    protected function loadWarps(): array{
+        $out = [];
+        foreach($this->store->getIterator() as $name => $data){
+            $out[$name] = $this->warpFromData($name, $data);
+        }
+        return $out;
+    }
+    /**
+     * WARNING
+     * This function is for internal use only.
+     */
+    public function saveAll(){
+        if($this->flag === 0){
+            $this->store->clear();
+            foreach($this->warps as $warp){
+                $this->store->add($warp->getName(), $this->warpToData($warp));
+            }
+            $this->saveStore(true);
+        }
+    }
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Whether a offset exists
+     * @link http://php.net/manual/en/arrayaccess.offsetexists.php
+     * @param mixed $offset <p>
+     * An offset to check for.
+     * </p>
+     * @return boolean true on success or false on failure.
+     * </p>
+     * <p>
+     * The return value will be casted to boolean if non-boolean was returned.
+     */
+    public function offsetExists($offset){
+        $this->reloadStore();
+        if(isset($this->warps[$offset]) || ($this->flag >= 2 && $this->store->exists($offset))){
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Offset to retrieve
+     * @link http://php.net/manual/en/arrayaccess.offsetget.php
+     * @param mixed $offset <p>
+     * The offset to retrieve.
+     * </p>
+     * @return mixed Can return all value types.
+     */
+    public function offsetGet($offset){
+        if($this->flag >= 2){
+            $this->reloadStore();
+            return $this->warpFromData($offset, $this->store->get($offset));
+        }
+        return isset($this->warps[$offset]) ? $this->warps[$offset] : null;
+    }
+
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Offset to set
+     * @link http://php.net/manual/en/arrayaccess.offsetset.php
+     * @param mixed $offset <p>
+     * The offset to assign the value to.
+     * </p>
+     * @param mixed $value <p>
+     * The value to set.
+     * </p>
+     * @return void
+     */
+    public function offsetSet($offset, $value){
+        if($value instanceof Warp && $value->getName() === $offset) {
+            if($this->flag < 2) {
+                $this->warps[$offset] = $value;
+            }
+
+            if ($this->flag >= 1) {
+                $this->store->add($offset, $this->warpToData($value));
+                $this->saveStore();
+            }
+        }
+        else{
+            //TODO report failure
+        }
+    }
+
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Offset to unset
+     * @link http://php.net/manual/en/arrayaccess.offsetunset.php
+     * @param mixed $offset <p>
+     * The offset to unset.
+     * </p>
+     * @return void
+     */
+    public function offsetUnset($offset){
+        if($this->flag < 2){
+            unset($this->warps[$offset]);
+        }
+
+        if($this->flag >= 1){
+            $this->store->remove($offset);
+            $this->saveStore();
+        }
+    }
+
+    /**
+     * This method requires the key of the warp in order
+     * to construct a warp object
+     * @param $name
+     * @param array $array
+     * @return Warp
+     * @throws \Exception
+     */
+    protected function warpFromData($name, array $array){
+        if(isset($array["level"]) && isset($array["x"]) && isset($array["y"]) && isset($array["z"]) && isset($array["public"])){ // This is an internal warp
+            return new Warp($this, $name, new Destination(new WeakPosition($array["x"], $array["y"], $array["z"], $array["level"])), $array["public"], $array["metadata"] ?? []);
+        }
+        elseif(isset($array["address"]) && isset($array["port"]) && isset($array["public"])) {
+            return new Warp($this, $name, new Destination($array["address"], $array["port"]), $array["public"], $array["metadata"] ?? []);
+        }
+
+        $this->api->getSimpleWarp()->getLogger()->critical("A warp with the name " . TextFormat::AQUA . $name . TextFormat::RESET . " is incomplete. It will be removed automatically when your server stops.");
+        return null;
+    }
+
+    /**
+     * In order to pass data to a DataStore
+     * a key is needed. Typically one should
+     * use $warp->getName()
+     * @param Warp $warp
+     * @return array
+     */
+    protected function warpToData(Warp $warp){
+        $ret = [];
+        if($warp->getDestination()->isInternal()) {
+            //TODO implement yaw and pitch
+            $pos = $warp->getDestination()->getPosition();
+            $ret = [
+                "x" => $pos->getX(),
+                "y" => $pos->getY(),
+                "z" => $pos->getZ(),
+                "level" => ($pos instanceof WeakPosition ? $pos->getLevelName() : $pos->getLevel()->getName()),
+                "public" => $warp->isPublic(),
+            ];
+        }
+        else{
+            $ret = [
+                "address" => $warp->getDestination()->getAddress(),
+                "port" => $warp->getDestination()->getPort(),
+                "public" => $warp->isPublic()
+            ];
+        }
+
+        $ret["metadata"] = $warp->getAllMetadata();
+        return $ret;
+    }
+
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Retrieve an external iterator
+     * @link http://php.net/manual/en/iteratoraggregate.getiterator.php
+     * @return Traversable An instance of an object implementing <b>Iterator</b> or
+     * <b>Traversable</b>
+     */
+    public function getIterator(){
+        if($this->flag >= 2){
+            return new \ArrayIterator($this->loadWarps());
+        }
+        return new \ArrayIterator($this->warps);
+    }
+
+    /**
+     * Returns the current storage-mode
+     * #####
+     *  MEMORY_TILL_CLOSE = 0
+     * Warps are loaded into memory when the server starts and are
+     * held there until the server closes. When the server closes
+     * they are converted back into YAML. This new YAML will
+     * replace warps.yml, this means that changes are lost and
+     * warps which fail to load are discarded.
+     *
+     *
+     * FLUSH_ON_CHANGE = 1
+     * Warps are loaded into memory when the server starts. Whenever a
+     * warp is updated, it will be updated in the warps.yml. When the
+     * server closes, the warps file is NOT overwritten.
+     *
+     * NO_MEMORY_STORE = 2
+     * Warps are never "stored" in memory. They are converted on demand
+     * between YAML and object format. Any changes made to the config
+     * will be available right away in the server and vice versa.
+     * ####
+     * @return int
+     */
+    public function getFlag(): int{
+        return $this->flag;
+    }
+
+    /**
+     * @return Warp[]
+     */
+    public function getWarps(): array{
+        return $this->warps;
+    }
+
+    /**
+     * returns the current data store
+     * @return DataStore
+     */
+    public function getStore(): DataStore{
+        return $this->store;
+    }
+
+    /**
+     * Injects a new DataStore for warps
+     * ! This will inject your code into SimpleWarp, potentially breaking!
+     * @param DataStore $store
+     */
+    public function setStore(DataStore $store){
+        $this->saveAll();
+        $this->store = $store;
+        if($this->flag < 2){
+            $this->warps = $this->loadWarps();
+        }
+    }
+}<?php
+namespace falkirks\simplewarp;
+
+use falkirks\simplewarp\event\PlayerWarpEvent;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use pocketmine\command\CommandSender;
+use pocketmine\metadata\Metadatable;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+use pocketmine\Server;
+
+/**
+ * The class that drives it all.
+ *
+ * Class Warp
+ * @package falkirks\simplewarp
+ */
+class Warp implements \JsonSerializable {
+    protected $manager;
+    protected $name;
+    protected $destination;
+    protected $isPublic;
+    protected $metadata;
+
+    public function __construct(WarpManager $manager, $name, Destination $destination, $isPublic = false, $metadata = []){
+        $this->manager = $manager;
+        $this->name = $name;
+        $this->destination = $destination;
+        $this->isPublic = $isPublic;
+        $this->metadata = $metadata;
+        SimpleWarpPermissions::setupPermission($this);
+    }
+    public function teleport(Player $player){
+        $ev = new PlayerWarpEvent($player, $this);
+        $this->getServer()->getPluginManager()->callEvent($ev);
+        if($ev->isCancelled()){
+            return;
+        }
+        $ev->getDestination()->teleport($player);
+    }
+    public function canUse(CommandSender $player): bool{
+        return ($this->isPublic || $player->hasPermission(SimpleWarpPermissions::BASE_WARP_PERMISSION) || $player->hasPermission(SimpleWarpPermissions::BASE_WARP_PERMISSION . "." . $this->name));
+    }
+
+    /**
+     * @param boolean $isPublic
+     */
+    public function setPublic($isPublic = true){
+        $this->isPublic = $isPublic;
+        $this->getManager()->offsetSet($this->name, $this);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getName(){
+        return $this->name;
+    }
+
+    /**
+     * @return Destination
+     */
+    public function getDestination(): Destination{
+        return $this->destination;
+    }
+
+    /**
+     * @param Destination $destination
+     */
+    public function setDestination(Destination $destination){
+        $this->destination = $destination;
+        $this->getManager()->offsetSet($this->name, $this);
+    }
+
+    /**
+     * @param WarpManager $manager
+     */
+    public function setManager(WarpManager $manager){
+        $this->manager = $manager;
+        $this->getManager()->offsetSet($this->name, $this);
+    }
+
+    /**
+     * @return array
+     */
+    public function getAllMetadata(): array{
+        return $this->metadata;
+    }
+
+    /**
+     * @param $key
+     * @return mixed
+     */
+    public function getMetadata($key){
+        return $this->metadata[$key] ?? null;
+    }
+    /**
+     * @param $key
+     * @param $value
+     */
+    public function setMetadata($key, $value){
+        $this->metadata[$key] = $value;
+        $this->getManager()->offsetSet($this->name, $this);
+    }
+
+    /**
+     * @return boolean
+     */
+    public function isPublic(): bool {
+        return $this->isPublic;
+    }
+    private function getServer(): Server{
+        return Server::getInstance();
+    }
+
+    /**
+     * @return WarpManager
+     */
+    public function getManager(): WarpManager{
+        return $this->manager;
+    }
+
+    /**
+     * For debugging use
+     * @return array
+     */
+    public function jsonSerialize(){
+        return [
+            'dest' => $this->getDestination()->toString(),
+            'isPublic' => $this->isPublic(),
+            'metadata' => $this->metadata
+        ];
+    }
+
+}<?php
+
+namespace falkirks\simplewarp;
+
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\utils\WeakPosition;
+use pocketmine\level\Position;
+use pocketmine\Player;
+use pocketmine\plugin\PluginBase;
+use pocketmine\Server;
+use pocketmine\utils\TextFormat;
+
+class Destination{
+    /** @var Position  */
+    protected $position;
+    protected $address;
+    protected $port;
+    protected $message;
+
+    public function __construct(...$params){
+        if(is_array($params[0])) $params = $params[0];
+        if(isset($params[0])){
+            if($params[0] instanceof Position){
+                $this->position = $params[0];
+                $this->message = (isset($params[1]) ? $params[1] : null);
+            }
+            else{
+                if(isset($params[1])){
+                    $this->address = $params[0];
+                    $this->port = $params[1];
+                    $this->message = (isset($params[2]) ? $params[2] : null);
+                }
+                else{
+                    throw new \BadMethodCallException;
+                }
+            }
+        }
+        else{
+            throw new \BadMethodCallException;
+        }
+    }
+    public function teleport(Player $player){
+        if($this->message !== null){
+            $player->sendMessage($this->message);
+        }
+
+        if($this->position instanceof Position){
+            if($this->position->isValid()) {
+                if($this->position instanceof WeakPosition){
+                    $this->position->updateProperties();
+                }
+                //Server::getInstance()->getLogger()->info($this->position->x . " : " . $this->position->y . " : " . $this->position->z);
+                $player->teleport($this->position);
+            }
+            else{
+                $player->sendMessage($this->getApi()->executeTranslationItem("level-not-loaded-warp"));
+            }
+        }
+        else{
+            $plugin = $player->getServer()->getPluginManager()->getPlugin("FastTransfer");
+            if(method_exists($player, "transfer")){
+                $player->transfer($this->address, $this->port);
+            }
+            elseif($plugin instanceof PluginBase && $plugin->isEnabled()){
+                $plugin->transferPlayer($player, $this->address, $this->port);
+            }
+            else{
+                $player->getServer()->getPluginManager()->getPlugin("SimpleWarp")->getLogger()->warning("In order to use warps to other servers, you must install " . TextFormat::AQUA . "FastTransfer" . TextFormat::RESET . " or use a newer PocketMine version.");
+                $player->sendPopup($this->getApi()->executeTranslationItem("warp-failed-popup"));
+            }
+        }
+    }
+    public function isInternal(): bool{
+        return $this->position instanceof Position;
+    }
+
+    /**
+     * @return Position
+     */
+    public function getPosition(): Position{
+        return $this->position;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getAddress(){
+        return $this->address;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getPort(){
+        return $this->port;
+    }
+    public function toString(){
+        if($this->isInternal()) {
+            if($this->position instanceof WeakPosition){
+                $levelName = $this->position->levelName;
+            }
+            else{
+                $levelName = $this->position->getLevel()->getName();
+            }
+            if($this->getApi()->getConfigItem("display-exact-coordinates")) {
+                return "(X: {$this->getPosition()->x}, Y: {$this->getPosition()->y}, Z: {$this->getPosition()->z}, LEVEL: {$levelName})";
+            }
+            else{
+                return "(X: {$this->getPosition()->getFloorX()}, Y: {$this->getPosition()->getFloorY()}, Z: {$this->getPosition()->getFloorZ()}, LEVEL: " . $levelName . ")";
+            }
+        }
+        return "(IP: {$this->getAddress()}, PORT: {$this->getPort()})";
+    }
+
+    public function __toString() {
+        return $this->toString();
+    }
+
+
+    /**
+     * @return SimpleWarpApi
+     */
+    protected function getApi(): SimpleWarpAPI{
+        return Server::getInstance()->getPluginManager()->getPlugin("SimpleWarp")->getApi();
+    }
+
+}<?php
+namespace falkirks\simplewarp\utils;
+
+
+use pocketmine\level\Level;
+use pocketmine\level\Position;
+use pocketmine\Server;
+
+/**
+ * This is hacky solution to the problem
+ * and won't work if other classes use the
+ * "level" field.
+ * Class WeakPosition
+ * @package falkirks\simplewarp\utils
+ */
+class WeakPosition extends Position{
+    public $level;
+    public $levelName;
+
+    public function __construct(float $x = 0, float $y = 0, float $z = 0, $levelName){
+        parent::__construct($x, $y, $z, null);
+        $this->levelName = $levelName;
+    }
+    public function isValid(): bool {
+        return Server::getInstance()->getLevelByName($this->levelName) instanceof Level;
+    }
+    public function updateProperties(){
+        $this->level = $this->getLevel();
+    }
+    public function getLevel(): Level{
+        return Server::getInstance()->getLevelByName($this->levelName);
+    }
+
+    public function getLevelName(){
+        return $this->levelName;
+    }
+}<?php
+namespace falkirks\simplewarp\permission;
+
+
+use falkirks\simplewarp\Warp;
+use pocketmine\permission\Permission;
+use pocketmine\Server;
+
+class SimpleWarpPermissions {
+    const ADD_WARP_COMMAND = "simplewarp.command.addwarp";
+    const DEL_WARP_COMMAND = "simplewarp.command.delwarp";
+    const WARP_COMMAND = "simplewarp.command.warp";
+    const WARP_OTHER_COMMAND = "simplewarp.command.warp.other";
+    const LIST_WARPS_COMMAND = "simplewarp.command.list";
+    const LIST_WARPS_COMMAND_XYZ = "simplewarp.command.list.xys";
+    const LIST_WARPS_COMMAND_VISUAL = "simplewarp.command.list.visual";
+    const OPEN_WARP_COMMAND = "simplewarp.command.openwarp";
+    const CLOSE_WARP_COMMAND = "simplewarp.command.closewarp";
+    const WARP_REPORT_COMMAND = "simplewarp.commamd.report";
+
+    const BASE_WARP_PERMISSION = "simplewarp.warp";
+
+    static private $baseWarpPerm = null;
+
+    static public function setupPermission(Warp $warp){
+        if(self::$baseWarpPerm == null) self::$baseWarpPerm = Server::getInstance()->getPluginManager()->getPermission("simplewarp.warp");
+        $permission = new Permission(self::BASE_WARP_PERMISSION . "." . $warp->getName(), "Allow use of " . $warp->getName()); //TODO correct default value
+        Server::getInstance()->getPluginManager()->addPermission($permission);
+        self::$baseWarpPerm->getChildren()[$permission->getName()] = true;
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\particle\FloatingTextParticle;
+use pocketmine\Player;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+class ListWarpsCommand extends SimpleWarpCommand {
+    private $api;
+    public function __construct(SimpleWarpAPI $api){
+        parent::__construct($api->executeTranslationItem("listwarps-cmd"), $api->executeTranslationItem("listwarps-desc"), $api->executeTranslationItem("listwarps-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::LIST_WARPS_COMMAND)) {
+                $ret = $this->api->executeTranslationItem("listwarps-list-title");
+                /** @var Warp[] $iterator */
+                $iterator = $this->api->getWarpManager();
+                foreach ($iterator as $w) {
+                    if ($w->canUse($sender)) {
+                        $ret .= " * " . $w->getName() . " ";
+                        if ($sender->hasPermission(SimpleWarpPermissions::LIST_WARPS_COMMAND_XYZ)) {
+                            $dest = $w->getDestination();
+                            $ret .= $dest->toString();
+                        }
+                        $ret .= "\n";
+                    }
+                }
+                /**
+                 * EASTER EGG!
+                 */
+                if ($sender instanceof Player && $sender->hasPermission(SimpleWarpPermissions::LIST_WARPS_COMMAND_VISUAL) && isset($args[0]) && $args[0] === "v") {
+                    foreach ($iterator as $warp) {
+                        if ($warp->getDestination()->isInternal() && $warp->getDestination()->getPosition()->getLevel() === $sender->getLevel()) {
+                            $particle = new FloatingTextParticle($warp->getDestination()->getPosition(), "(X: {$warp->getDestination()->getPosition()->getFloorX()}}, Y: {$warp->getDestination()->getPosition()->getFloorY()}, Z: {$warp->getDestination()->getPosition()->getFloorZ()}, LEVEL: {$warp->getDestination()->getPosition()->getLevel()->getName()})", "WARP: " . TextFormat::AQUA . $warp->getName() . TextFormat::RESET);
+                            $sender->getLevel()->addParticle($particle, [$sender]);
+                        }
+                    }
+                }
+                $sender->sendMessage(($ret !== $this->api->executeTranslationItem("listwarps-list-title") ? $ret : $this->api->executeTranslationItem("listwarps-no-warps")));
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("listwarps-noperm"));
+            }
+        }
+    }
+
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\SimpleWarp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\plugin\PluginException;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+abstract class SimpleWarpCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if($this->getPlugin()->isDisabled()){
+            $sender->sendMessage($this->getPlugin()->getApi()->executeTranslationItem("plugin-disabled"));
+            return false;
+        }
+        return true;
+    }
+
+    public abstract function getPlugin(): Plugin;
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\event\WarpOpenEvent;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Version;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+class OpenWarpCommand extends SimpleWarpCommand {
+    private $api;
+    public function __construct(SimpleWarpAPI $api){
+        parent::__construct($api->executeTranslationItem("openwarp-cmd"), $api->executeTranslationItem("openwarp-desc"), $api->executeTranslationItem("openwarp-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::OPEN_WARP_COMMAND)) {
+                if (isset($args[0])) {
+                    if (isset($this->api->getWarpManager()[$args[0]])) {
+                        /** @var Warp $warp */
+                        $warp = $this->api->getWarpManager()[$args[0]];
+                        $ev = new WarpOpenEvent($sender, $warp);
+                        $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                        if (!$ev->isCancelled()) {
+                            $warp->setPublic(true);
+                            $sender->sendMessage($this->api->executeTranslationItem("opened-warp-1", $args[0]));
+                            $sender->sendMessage($this->api->executeTranslationItem("opened-warp-2"));
+                        }
+                        else {
+                            $sender->sendMessage($this->api->executeTranslationItem("openwarp-event-cancelled"));
+                        }
+                    }
+                    else {
+                        $sender->sendMessage($this->api->executeTranslationItem("warp-doesnt-exist", $args[0]));
+                    }
+                }
+                else {
+                    $sender->sendMessage($this->getUsage());
+                    Version::sendVersionMessage($sender);
+                }
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("openwarp-noperm"));
+            }
+        }
+    }
+
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\event\WarpCloseEvent;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Version;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+class CloseWarpCommand extends SimpleWarpCommand {
+    private $api;
+    public function __construct(SimpleWarpAPI $api){
+        parent::__construct($api->executeTranslationItem("closewarp-cmd"), $api->executeTranslationItem("closewarp-desc"), $api->executeTranslationItem("closewarp-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::OPEN_WARP_COMMAND)) {
+                if (isset($args[0])) {
+                    if (isset($this->api->getWarpManager()[$args[0]])) {
+                        /** @var Warp $warp */
+                        $warp = $this->api->getWarpManager()[$args[0]];
+                        $ev = new WarpCloseEvent($sender, $warp);
+                        $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                        if (!$ev->isCancelled()) {
+                            $warp->setPublic(false);
+                            $sender->sendMessage($this->api->executeTranslationItem("closed-warp-1", $args[0]));
+                            $sender->sendMessage($this->api->executeTranslationItem("closed-warp-2", SimpleWarpPermissions::BASE_WARP_PERMISSION . "." . $warp->getName()));
+                        }
+                        else {
+                            $sender->sendMessage($this->api->executeTranslationItem("closewarp-event-cancelled"));
+                        }
+                    }
+                    else {
+                        $sender->sendMessage($this->api->executeTranslationItem("warp-doesnt-exist"));
+                    }
+                }
+                else {
+                    $sender->sendMessage($this->getUsage());
+                    Version::sendVersionMessage($sender);
+                }
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("closewarp-noperm"));
+            }
+        }
+    }
+
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\event\WarpCloseEvent;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Version;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\ConsoleCommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\utils\TextFormat;
+use pocketmine\utils\Utils;
+use pocketmine\plugin\Plugin;
+
+class WarpReportCommand extends SimpleWarpCommand {
+    private $api;
+    public function __construct(SimpleWarpAPI $api){
+        parent::__construct($api->executeTranslationItem("warpreport-cmd"), $api->executeTranslationItem("warpreport-desc"), $api->executeTranslationItem("warpreport-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::WARP_REPORT_COMMAND)) {
+                $data = $this->getPlugin()->getDebugDumpFactory()->generate();
+                if ($sender instanceof ConsoleCommandSender) {
+                    $issueContent = "\n\n(Explain your problem here)\n\n```\n$data\n```";
+                    $url = "https://github.com/Falkirks/SimpleWarp/issues/new" . (count($args) > 0 ? "?title=" . urlencode(implode(" ", $args)) . "\&" : "?") . "body=" . urlencode($issueContent);
+                    switch (Utils::getOS()) {
+                        case 'win':
+                            `start $url`;
+                            break;
+                        case 'mac':
+                            `open $url`;
+                            break;
+                        case 'linux':
+                            `xdg-open $url`;
+                            break;
+                        default:
+                            $sender->sendMessage("Copy and paste the following URL into your browser to start a report.");
+                            $sender->sendMessage("------------------");
+                            $sender->sendMessage($url);
+                            $sender->sendMessage("------------------");
+                            break;
+                    }
+                }
+                $sender->sendMessage("--- SimpleWarp Data ---");
+                $sender->sendMessage($data);
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("warpreport-noperm"));
+            }
+            return true;
+        }
+    }
+
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\Destination;
+use falkirks\simplewarp\event\WarpAddEvent;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\utils\WeakPosition;
+use falkirks\simplewarp\Version;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\Level;
+use pocketmine\level\Position;
+use pocketmine\Player;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+class AddWarpCommand extends SimpleWarpCommand {
+    private $api;
+
+    public function __construct(SimpleWarpAPI $api) {
+        parent::__construct($api->executeTranslationItem("addwarp-cmd"), $api->executeTranslationItem("addwarp-desc"), $api->executeTranslationItem("addwarp-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if (parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::ADD_WARP_COMMAND)) {
+                if (isset($args[0])) {
+                    if (!isset($this->api->getWarpManager()[$args[0]])) {
+                        if (substr($args[0], 0, 4) === "ess:" && $this->api->getConfigItem("essentials-support") && $sender->hasPermission("simplewarp.essentials.notice")) {
+                            $sender->sendMessage($this->api->executeTranslationItem("addwarp-ess-prefix-warning"));
+                        }
+                        if (isset($args[3])) {
+                            $level = (isset($args[4]) ? $this->api->getSimpleWarp()->getServer()->getLevelByName($args[4]) : $this->api->getSimpleWarp()->getServer()->getDefaultLevel());
+                            if ($level instanceof Level) {
+                                $dest = new Destination(new WeakPosition($args[1], $args[2], $args[3], $level->getName()));
+                                $warp = new Warp($this->api->getWarpManager(), $args[0], $dest);
+                                $ev = new WarpAddEvent($sender, $warp);
+                                $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                                if (!$ev->isCancelled()) {
+                                    $this->api->getWarpManager()[$args[0]] = $warp;
+                                    $sender->sendMessage($this->api->executeTranslationItem("warp-added-xyz", $args[0], $dest->toString()));
+                                }
+                                else {
+                                    $sender->sendMessage($this->api->executeTranslationItem("addwarp-event-cancelled"));
+                                }
+                            }
+                            else {
+                                $sender->sendMessage($this->api->executeTranslationItem("level-not-loaded"));
+                            }
+                        }
+                        elseif (isset($args[2])) {
+                            $dest = new Destination($args[1], $args[2]);
+                            $warp = new Warp($this->api->getWarpManager(), $args[0], $dest);
+                            $ev = new WarpAddEvent($sender, $warp);
+                            $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                            if (!$ev->isCancelled()) {
+                                $this->api->getWarpManager()[$args[0]] = $warp;
+                                $sender->sendMessage($this->api->executeTranslationItem("warp-added-server", $args[0], $dest->toString()));
+                                if (!$this->api->supportsExternalWarps()) {
+                                    $sender->sendMessage($this->api->executeTranslationItem("needs-external-warps"));
+                                }
+                            }
+                            else {
+                                $sender->sendMessage($this->api->executeTranslationItem("addwarp-event-cancelled"));
+                            }
+                        }
+                        elseif (isset($args[1])) {
+                            if (($player = $this->api->getSimpleWarp()->getServer()->getPlayer($args[1])) instanceof Player) {
+                                $dest = new Destination(new Position($player->getX(), $player->getY(), $player->getZ(), $player->getLevel()));
+                                $warp = new Warp($this->api->getWarpManager(), $args[0], $dest);
+                                $ev = new WarpAddEvent($sender, $warp);
+                                $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                                if (!$ev->isCancelled()) {
+                                    $this->api->getWarpManager()[$args[0]] = $warp;
+                                    $sender->sendMessage($this->api->executeTranslationItem("warp-added-player", $args[0], $dest->toString()));
+                                }
+                                else {
+                                    $sender->sendMessage($this->api->executeTranslationItem("addwarp-event-cancelled"));
+                                }
+                            }
+                            else {
+                                $sender->sendMessage($this->api->executeTranslationItem("player-not-loaded"));
+                            }
+                        }
+                        else {
+                            if ($sender instanceof Player) {
+                                $dest = new Destination(new Position($sender->getX(), $sender->getY(), $sender->getZ(), $sender->getLevel()));
+                                $warp = new Warp($this->api->getWarpManager(), $args[0], $dest);
+                                $ev = new WarpAddEvent($sender, $warp);
+                                $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                                if (!$ev->isCancelled()) {
+                                    $this->api->getWarpManager()[$args[0]] = $warp;
+                                    $sender->sendMessage($this->api->executeTranslationItem("warp-added-self", $args[0], $dest->toString()));
+                                }
+                                else {
+                                    $sender->sendMessage($this->api->executeTranslationItem("addwarp-event-cancelled"));
+                                }
+                            }
+                            else {
+                                $sender->sendMessage($this->getUsage());
+                            }
+                        }
+                    }
+                    else {
+                        $sender->sendMessage($this->api->executeTranslationItem("bad-warp-name"));
+                    }
+                }
+                else {
+                    $sender->sendMessage($this->getUsage());
+                    Version::sendVersionMessage($sender);
+                }
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("addwarp-no-perm"));
+            }
+        }
+    }
+
+    public function generateCustomCommandData(Player $player) {
+        return parent::generateCustomCommandData($player); // TODO: Change the autogenerated stub
+    }
+
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\task\CommandWarpTask;
+use falkirks\simplewarp\Version;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\particle\ExplodeParticle;
+use pocketmine\level\particle\FloatingTextParticle;
+use pocketmine\level\particle\SmokeParticle;
+use pocketmine\level\Position;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+use pocketmine\utils\Random;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+class WarpCommand extends SimpleWarpCommand {
+    protected $api;
+
+    public function __construct(SimpleWarpAPI $api) {
+        parent::__construct($api->executeTranslationItem("warp-cmd"), $api->executeTranslationItem("warp-desc"), $api->executeTranslationItem("warp-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if (parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::WARP_COMMAND)) {
+                if (isset($args[0])) {
+                    if (isset($this->api->getWarpManager()[$args[0]])) {
+                        if (isset($args[1])) {
+                            if ($sender->hasPermission(SimpleWarpPermissions::WARP_OTHER_COMMAND)) {
+                                if (($player = $this->api->getSimpleWarp()->getServer()->getPlayer($args[1])) instanceof Player) {
+                                    /** @var Warp $warp */
+                                    $warp = $this->api->getWarpManager()[$args[0]];
+                                    if ($warp->canUse($sender)) {
+                                        $task = new CommandWarpTask($this->getPlugin(), $warp, $player, $sender);
+                                        $task->run();
+                                    }
+                                    else {
+                                        $sender->sendMessage($this->api->executeTranslationItem("no-permission-warp"));
+                                    }
+                                }
+                                else {
+                                    $sender->sendMessage($this->api->executeTranslationItem("player-not-loaded"));
+                                }
+                            }
+                            else {
+                                $sender->sendMessage($this->api->executeTranslationItem("no-permission-warp-other"));
+                            }
+                        }
+                        elseif ($sender instanceof Player) {
+                            /** @var Warp $warp */
+                            $warp = $this->api->getWarpManager()[$args[0]];
+                            if ($warp->canUse($sender)) {
+                                $task = new CommandWarpTask($this->getPlugin(), $warp, $sender, $sender);
+                                $task->run();
+                            }
+                            else {
+                                $sender->sendMessage($this->api->executeTranslationItem("no-permission-warp"));
+                            }
+                        }
+                        else {
+                            $sender->sendMessage($this->getUsage());
+
+                        }
+                    }
+                    else {
+                        $sender->sendMessage($this->api->executeTranslationItem("warp-doesnt-exist"));
+                    }
+                }
+                else {
+                    $sender->sendMessage($this->getUsage());
+                    Version::sendVersionMessage($sender);
+                }
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("warp-noperm"));
+            }
+        }
+    }
+
+    public function displaySmoke(Position $pos) {
+        //particle smoke 120 71 124 1 1 1 35 200
+        $random = new Random((int)(microtime(true) * 1000) + mt_rand());
+
+        $particle = new SmokeParticle(new Vector3($pos->x, $pos->y + 0.7, $pos->z), 200);
+        for ($i = 0; $i < 35; ++$i) {
+            $particle->setComponents(
+                $pos->x + $random->nextSignedFloat(),
+                $pos->y + $random->nextSignedFloat(),
+                $pos->z + $random->nextSignedFloat()
+            );
+            $pos->getLevel()->addParticle($particle);
+        }
+    }
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+
+namespace falkirks\simplewarp\command;
+
+use falkirks\simplewarp\api\SimpleWarpAPI;
+use falkirks\simplewarp\event\WarpDeleteEvent;
+use falkirks\simplewarp\permission\SimpleWarpPermissions;
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Version;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\utils\TextFormat;
+use pocketmine\plugin\Plugin;
+
+class DelWarpCommand extends SimpleWarpCommand {
+    protected $api;
+    public function __construct(SimpleWarpAPI $api){
+        parent::__construct($api->executeTranslationItem("delwarp-cmd"), $api->executeTranslationItem("delwarp-desc"), $api->executeTranslationItem("delwarp-usage"));
+        $this->api = $api;
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(parent::execute($sender, $commandLabel, $args)) {
+            if ($sender->hasPermission(SimpleWarpPermissions::DEL_WARP_COMMAND)) {
+                if (isset($args[0])) {
+                    if (isset($this->api->getWarpManager()[$args[0]])) {
+                        $ev = new WarpDeleteEvent($sender, $this->api->getWarpManager()[$args[0]]);
+                        $this->getPlugin()->getServer()->getPluginManager()->callEvent($ev);
+                        if (!$ev->isCancelled()) {
+                            unset($this->api->getWarpManager()[$args[0]]);
+                            $sender->sendMessage($this->api->executeTranslationItem("warp-deleted", $args[0]));
+                        }
+                        else {
+                            $sender->sendMessage($this->api->executeTranslationItem("delwarp-event-cancelled"));
+                        }
+                    }
+                    else {
+                        $sender->sendMessage($this->api->executeTranslationItem("warp-doesnt-exist", $args[0]));
+                    }
+                }
+                else {
+                    $sender->sendMessage($this->getUsage());
+                    Version::sendVersionMessage($sender);
+                }
+            }
+            else {
+                $sender->sendMessage($this->api->executeTranslationItem("delwarp-noperm"));
+            }
+        }
+    }
+
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api->getSimpleWarp();
+    }
+}<?php
+namespace falkirks\simplewarp\utils;
+
+use pocketmine\plugin\PluginBase;
+use pocketmine\Server;
+
+/**
+ * This class is deliberately meant to be silly
+ * Class SpoonDetector
+ * @package falkirks\simplewarp\utils
+ */
+class SpoonDetector{
+
+    private static $subtleAsciiSpoon = "   
+         ___ _ __   ___   ___  _ __  
+        / __| '_ \\ / _ \\ / _ \\| '_ \\ 
+        \\__ \\ |_) | (_) | (_) | | | |
+        |___/ .__/ \\___/ \\___/|_| |_|
+            | |                      
+            |_|                      
+    ";
+
+    private static $spoonTxtContent = "
+    The author of this plugin does not provide support for third-party builds of 
+    PocketMine-MP (spoons). Spoons detract from the overall quality of the MCPE plugin environment, which is already 
+    lacking in quality. They force plugin developers to waste time trying to support conflicting APIs.
+    
+    In order to begin using this plugin you must understand that you will be offered no support. 
+    
+    Furthermore, the GitHub issue tracker for this project is targeted at vanilla PocketMine only. Any bugs you create which don't affect vanilla PocketMine, will be deleted.
+    
+    Have you read and understood the above (type 'yes' after the question mark)?";
+
+    private static $thingsThatAreNotSpoons = [
+        'PocketMine-MP'
+    ];
+
+    public static function isThisSpoon() : bool {
+        return !in_array(Server::getInstance()->getName(), self::$thingsThatAreNotSpoons);
+    }
+
+    private static function contentValid(string $content): bool {
+        return (strpos($content, self::$spoonTxtContent) > -1) && (strrpos($content, "yes") > strrpos($content, "?"));
+    }
+
+    public static function printSpoon(PluginBase $pluginBase, $fileToCheck){
+        if(self::isThisSpoon()){
+            if(!file_exists($pluginBase->getDataFolder() . $fileToCheck)){
+                file_put_contents($pluginBase->getDataFolder() . $fileToCheck, self::$spoonTxtContent);
+            }
+            if(!self::contentValid(file_get_contents($pluginBase->getDataFolder() . $fileToCheck))) {
+                $pluginBase->getLogger()->info(self::$subtleAsciiSpoon);
+                $pluginBase->getLogger()->warning("You are attempting to run " . $pluginBase->getDescription()->getName() . " on a SPOON!");
+                $pluginBase->getLogger()->warning("Before using the plugin you will need to open /plugins/" . $pluginBase->getDescription()->getName() . "/" . $fileToCheck . " in a text editor and agree to the terms.");
+                $pluginBase->getServer()->getPluginManager()->disablePlugin($pluginBase);
+            }
+        }
+    }
+
+}<?php
+namespace falkirks\simplewarp\utils;
+
+
+use pocketmine\plugin\PharPluginLoader;
+use pocketmine\plugin\PluginBase;
+use pocketmine\utils\Utils;
+
+class ChecksumVerify {
+    const POGGIT_ENDPOINT = "https://poggit.pmmp.io/get.sha1/";
+
+    /**
+     * WARNING! This is a blocking function that performs a web request.
+     */
+    public static function isValid(PluginBase $pluginBase){
+        $url = ChecksumVerify::POGGIT_ENDPOINT . $pluginBase->getDescription()->getName() . "/" . $pluginBase->getDescription()->getVersion();
+        $hash = Utils::getURL($url);
+        if($pluginBase->getPluginLoader() instanceof PharPluginLoader){
+            $reflect = new \ReflectionClass($pluginBase);
+            $method = $reflect->getMethod("getFile");
+            $method->setAccessible(true);
+            $file = $method->invoke($pluginBase);
+            $method->setAccessible(false);
+
+            $check = sha1_file(substr($file, 7, -1));
+            return $check === $hash;
+        }
+        return false;
+
+    }
+
+}<?php
+namespace falkirks\simplewarp\task;
+
+
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Warp;
+use pocketmine\command\CommandSender;
+use pocketmine\level\particle\SmokeParticle;
+use pocketmine\level\Position;
+use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\PlaySoundPacket;
+use pocketmine\Player;
+use pocketmine\utils\Random;
+
+class CommandWarpTask extends PlayerWarpTask{
+    private $sender;
+
+    public function __construct(SimpleWarp $plugin, Warp $warp, Player $player, CommandSender $sender){
+        parent::__construct($plugin, $warp, $player);
+        $this->sender = $sender;
+
+        if($this->getSimpleWarp()->getConfig()->get("hold-still-enabled")){
+            if ($this->player->getName() !== $this->sender->getName()) {
+                $this->player->sendPopup($this->getSimpleWarp()->getApi()->executeTranslationItem("hold-still-popup"));
+                $this->sender->sendMessage($this->getSimpleWarp()->getApi()->executeTranslationItem("hold-still-other"));
+            }
+            else {
+                $this->player->sendPopup($this->getSimpleWarp()->getApi()->executeTranslationItem("hold-still-popup"));
+            }
+        }
+    }
+
+    /**
+     * Actions to execute when run
+     *
+     * @param $currentTick
+     *
+     * @return void
+     */
+    public function onRun(int $currentTick){
+        if($this->player instanceof Player && $this->player->isOnline()){
+            if(!$this->getSimpleWarp()->getConfig()->get("hold-still-enabled") || $this->player->getPosition()->equals($this->position)) {
+
+                $this->player->sendPopup($this->getSimpleWarp()->getApi()->executeTranslationItem("warping-popup", $this->warp->getName()));
+
+                $this->warp->teleport($this->player);
+
+                $this->displaySmoke($this->position);
+
+                if ($this->player->getName() !== $this->sender->getName()) {
+                    $this->sender->sendMessage($this->getSimpleWarp()->getApi()->executeTranslationItem("other-player-warped", $this->player->getName(), $this->warp->getName()));
+                }
+                else {
+                    $this->sender->sendMessage($this->getSimpleWarp()->getApi()->executeTranslationItem("warp-done"));
+                }
+            }
+            else{
+                if ($this->player->getName() !== $this->sender->getName()) {
+                    $this->sender->sendMessage($this->getSimpleWarp()->getApi()->executeTranslationItem("hold-still-cancelled-other"));
+                }
+                else {
+                    $this->sender->sendMessage($this->getSimpleWarp()->getApi()->executeTranslationItem("hold-still-cancelled"));
+                }
+            }
+        }
+    }
+
+    public function displaySmoke(Position $pos){
+        //particle smoke 120 71 124 1 1 1 35 200
+        $random = new Random((int) (microtime(true) * 1000) + mt_rand());
+
+        $particle = new SmokeParticle(new Vector3($pos->x, $pos->y + 0.7, $pos->z), 200);
+        for($i = 0; $i < 35; ++$i){
+            $particle->setComponents(
+                $pos->x + $random->nextSignedFloat(),
+                $pos->y + $random->nextSignedFloat(),
+                $pos->z + $random->nextSignedFloat()
+            );
+            $pos->getLevel()->addParticle($particle);
+        }
+    }
+
+}
+<?php
+namespace falkirks\simplewarp\task;
+
+
+use falkirks\simplewarp\SimpleWarp;
+use falkirks\simplewarp\Warp;
+use pocketmine\Player;
+use pocketmine\scheduler\Task;
+
+class PlayerWarpTask extends Task {
+    protected $simpleWarp;
+    
+    protected $warp;
+    protected $player;
+    protected $position;
+    public function __construct(SimpleWarp $plugin, Warp $warp, Player $player){
+        $this->simpleWarp = $plugin;
+        $this->warp = $warp;
+        $this->player = $player;
+        $this->position = $player->getPosition();
+    }
+
+    /**
+     * Actions to execute when run
+     *
+     * @param $currentTick
+     *
+     * @return void
+     */
+    public function onRun(int $currentTick){
+        if($this->player instanceof Player && $this->player->isOnline()){
+            if(!$this->getSimpleWarp()->getConfig()->get("hold-still-enabled") || $this->player->getPosition()->equals($this->position)){
+                $this->warp->teleport($this->player);
+            }
+        }
+    }
+
+    public function runNext(){
+        $this->getSimpleWarp()->getScheduler()->scheduleTask($this);
+    }
+
+    public function runWithHoldStill(){
+        $this->getSimpleWarp()->getScheduler()->scheduleDelayedTask($this, $this->getSimpleWarp()->getConfig()->get("hold-still-time"));
+    }
+
+    public function run(){
+        if($this->getSimpleWarp()->getConfig()->get("hold-still-enabled")){
+            $this->runWithHoldStill();
+        }
+        else{
+            $this->runNext();
+        }
+    }
+
+
+    /**
+     * @return Warp
+     */
+    public function getWarp(): Warp{
+        return $this->warp;
+    }
+
+    /**
+     * @return Player
+     */
+    public function getPlayer(): Player{
+        return $this->player;
+    }
+
+    /**
+     * @return SimpleWarp
+     */
+    public function getSimpleWarp(): SimpleWarp{
+        return $this->simpleWarp;
+    }
+    
+    
+
+
+}
+<?php
+namespace falkirks\simplewarp\event;
+
+
+use falkirks\simplewarp\Destination;
+use falkirks\simplewarp\Warp;
+use pocketmine\event\Cancellable;
+use pocketmine\event\player\PlayerEvent;
+use pocketmine\Player;
+
+class PlayerWarpEvent extends PlayerEvent implements Cancellable{
+    public static $handlerList = null;
+    /** @var  Warp */
+    private $warp;
+    /** @var Destination */
+    private $destination = null;
+    public function __construct(Player $player, Warp $warp){
+        $this->player = $player;
+        $this->warp = $warp;
+    }
+
+    /**
+     * @return Warp
+     */
+    public function getWarp(): Warp{
+        return $this->warp;
+    }
+    public function getDestination(): Destination{
+        return ($this->destination instanceof Destination ? $this->destination : $this->warp->getDestination());
+    }
+    public function setDestination(Destination $destination){
+        $this->destination = $destination;
+    }
+
+}

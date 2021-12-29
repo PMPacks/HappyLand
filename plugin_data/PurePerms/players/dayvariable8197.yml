@@ -1,0 +1,12 @@
+---
+userName: DayVariable8197
+group: Guest
+permissions:
+- essentialstp.command.warp.b
+- essentialstp.command.warp.c
+- simplewarp.command.warp.b
+- simplewarp.command.warp.c
+worlds: []
+time: -1
+expTime: -1
+...

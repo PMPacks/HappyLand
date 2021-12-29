@@ -1,0 +1,10 @@
+name: CachChoi
+main: CachChoi\Main
+version: 1.0
+author: 
+- KNMiner
+api: 3.0.0, 4.0.0
+commands:
+  cachchoi:
+    description: "Xem Cách Chơi Của Server"
+    aliases: [r]

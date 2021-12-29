@@ -1,0 +1,9 @@
+---
+provider: yaml
+config_storage: C:\Users\Administrator\Desktop\AURAKINGDOM-Network\Prison_\plugin_data\RankSystem/
+mysql:
+  host: 127.0.0.1
+  user: admin
+  pass: admin
+  db: database
+...

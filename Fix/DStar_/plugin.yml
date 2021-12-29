@@ -1,0 +1,10 @@
+name: DeathStar
+main: DeathStar\Main
+api: [3.0.0, 3.1.0, 3.1.1, 3.1.4, 4.0.0]
+version: 1.0
+author: DeathStar
+description: Edit Từ EconomyAPI
+commands:
+ dstar:
+  usage: /dstar
+  description: Menu Giá Trị Star Của Server

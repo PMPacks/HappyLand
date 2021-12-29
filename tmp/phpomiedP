@@ -1,0 +1,1859 @@
+<?php
+
+/*
+ * EconomyS, the massive economy plugin with many features for PocketMine-MP
+ * Copyright (C) 2013-2017  onebone <jyc00410@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+namespace onebone\economyapi;
+
+use pocketmine\Player;
+use pocketmine\plugin\PluginBase;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerJoinEvent;
+use pocketmine\utils\Config;
+use pocketmine\utils\Utils;
+use pocketmine\utils\TextFormat;
+
+use onebone\economyapi\provider\Provider;
+use onebone\economyapi\provider\YamlProvider;
+use onebone\economyapi\provider\MySQLProvider;
+use onebone\economyapi\event\money\SetMoneyEvent;
+use onebone\economyapi\event\money\ReduceMoneyEvent;
+use onebone\economyapi\event\money\AddMoneyEvent;
+use onebone\economyapi\event\money\MoneyChangedEvent;
+use onebone\economyapi\event\account\CreateAccountEvent;
+use onebone\economyapi\task\SaveTask;
+
+class EconomyAPI extends PluginBase implements Listener{
+	const API_VERSION = 3;
+	const PACKAGE_VERSION = "5.7";
+
+	const RET_NO_ACCOUNT = -3;
+	const RET_CANCELLED = -2;
+	const RET_NOT_FOUND = -1;
+	const RET_INVALID = 0;
+	const RET_SUCCESS = 1;
+
+	private static $instance = null;
+
+	/** @var Provider */
+	private $provider;
+
+	private $langList = [
+		"def" => "Default",
+		"user-define" => "User Defined",
+		"ch" => "简体中文",
+		"cs" => "Čeština",
+		"en" => "English",
+		"fr" => "Français",
+		"id" => "Bahasa Indonesia",
+		"it" => "Italiano",
+		"ja" => "日本語",
+		"ko" => "한국어",
+		"nl" => "Nederlands",
+		"ru" => "Русский",
+		"uk" => "Українська",
+		"zh" => "繁體中文",
+	];
+	private $lang = [], $playerLang = [];
+
+	/**
+	 * @param string			$command
+	 * @param string|bool		$lang
+	 *
+	 * @return array
+	 */
+	public function getCommandMessage(string $command, $lang = false) : array{
+		if($lang === false){
+			$lang = $this->getConfig()->get("default-lang");
+		}
+		$command = strtolower($command);
+		if(isset($this->lang[$lang]["commands"][$command])){
+			return $this->lang[$lang]["commands"][$command];
+		}else{
+			return $this->lang["def"]["commands"][$command];
+		}
+	}
+
+	/**
+	 * @param string		$key
+	 * @param array 		$params
+	 * @param string		$player
+	 *
+	 * @return string
+	 */
+	public function getMessage(string $key, array $params = [], string $player = "console") : string{
+		$player = strtolower($player);
+		if(isset($this->lang[$this->playerLang[$player]][$key])){
+			return $this->replaceParameters($this->lang[$this->playerLang[$player]][$key], $params);
+		}elseif(isset($this->lang["def"][$key])){
+			return $this->replaceParameters($this->lang["def"][$key], $params);
+		}
+		return "Language matching key \"$key\" does not exist.";
+	}
+
+	public function setPlayerLanguage(string $player, string $language) : bool{
+		$player = strtolower($player);
+		$language = strtolower($language);
+		if(isset($this->lang[$language])){
+			$this->playerLang[$player] = $language;
+			return true;
+		}
+		return false;
+	}
+
+	public function getMonetaryUnit() : string{
+		return $this->getConfig()->get("monetary-unit");
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getAllMoney() : array{
+		return $this->provider->getAll();
+	}
+
+	/**
+	 * @param string|Player		$player
+	 * @param float				$defaultMoney
+	 * @param bool				$force
+	 *
+	 * @return bool
+	 */
+	public function createAccount($player, $defaultMoney = false, bool $force = false) : bool{
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(!$this->provider->accountExists($player)){
+			$defaultMoney = ($defaultMoney === false) ? $this->getConfig()->get("default-money") : $defaultMoney;
+
+			$this->getServer()->getPluginManager()->callEvent($ev = new CreateAccountEvent($this, $player, $defaultMoney, "none"));
+			if(!$ev->isCancelled() or $force === true){
+				$this->provider->createAccount($player, $ev->getDefaultMoney());
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @param string|Player			$player
+	 *
+	 * @return bool
+	 */
+	public function accountExists($player) : bool{
+		return $this->provider->accountExists($player);
+	}
+
+	/**
+	 * @param Player|string		$player
+	 *
+	 * @return float|bool
+	 */
+	public function myMoney($player){
+		return $this->provider->getMoney($player);
+	}
+
+	/**
+	 * @param string|Player 	$player
+	 * @param float 			$amount
+	 * @param bool				$force
+	 * @param string			$issuer
+	 *
+	 * @return int
+	 */
+	public function setMoney($player, $amount, bool $force = false, string $issuer = "none") : int{
+		if($amount < 0){
+			return self::RET_INVALID;
+		}
+
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+		if($this->provider->accountExists($player)){
+			$amount = round($amount, 2);
+			if($amount > $this->getConfig()->get("max-money")){
+				return self::RET_INVALID;
+			}
+
+			$this->getServer()->getPluginManager()->callEvent($ev = new SetMoneyEvent($this, $player, $amount, $issuer));
+			if(!$ev->isCancelled() or $force === true){
+				$this->provider->setMoney($player, $amount);
+				$this->getServer()->getPluginManager()->callEvent(new MoneyChangedEvent($this, $player, $amount, $issuer));
+				return self::RET_SUCCESS;
+			}
+			return self::RET_CANCELLED;
+		}
+		return self::RET_NO_ACCOUNT;
+	}
+
+	/**
+	 * @param string|Player 	$player
+	 * @param float 			$amount
+	 * @param bool				$force
+	 * @param string			$issuer
+	 *
+	 * @return int
+	 */
+	public function addMoney($player, $amount, bool $force = false, $issuer = "none") : int{
+		if($amount < 0){
+			return self::RET_INVALID;
+		}
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+		if(($money = $this->provider->getMoney($player)) !== false){
+			$amount = round($amount, 2);
+			if($money + $amount > $this->getConfig()->get("max-money")){
+				return self::RET_INVALID;
+			}
+
+			$this->getServer()->getPluginManager()->callEvent($ev = new AddMoneyEvent($this, $player, $amount, $issuer));
+			if(!$ev->isCancelled() or $force === true){
+				$this->provider->addMoney($player, $amount);
+				$this->getServer()->getPluginManager()->callEvent(new MoneyChangedEvent($this, $player, $amount + $money, $issuer));
+				return self::RET_SUCCESS;
+			}
+			return self::RET_CANCELLED;
+		}
+		return self::RET_NO_ACCOUNT;
+	}
+
+	/**
+	 * @param string|Player 	$player
+	 * @param float 			$amount
+	 * @param bool				$force
+	 * @param string			$issuer
+	 *
+	 * @return int
+	 */
+	public function reduceMoney($player, $amount, bool $force = false, $issuer = "none") : int{
+		if($amount < 0){
+			return self::RET_INVALID;
+		}
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+		if(($money = $this->provider->getMoney($player)) !== false){
+			$amount = round($amount, 2);
+			if($money - $amount < 0){
+				return self::RET_INVALID;
+			}
+
+			$this->getServer()->getPluginManager()->callEvent($ev = new ReduceMoneyEvent($this, $player, $amount, $issuer));
+			if(!$ev->isCancelled() or $force === true){
+				$this->provider->reduceMoney($player, $amount);
+				$this->getServer()->getPluginManager()->callEvent(new MoneyChangedEvent($this, $player, $money - $amount, $issuer));
+				return self::RET_SUCCESS;
+			}
+			return self::RET_CANCELLED;
+		}
+		return self::RET_NO_ACCOUNT;
+	}
+
+	/**
+	 * @return EconomyAPI
+	 */
+	public static function getInstance(){
+		return self::$instance;
+	}
+
+	public function onLoad(){
+		self::$instance = $this;
+	}
+
+	public function onEnable(){
+		/*
+		 * 디폴트 설정 파일을 먼저 생성하게 되면 데이터 폴더 파일이 자동 생성되므로
+		 * 'Failed to open stream: No such file or directory' 경고 메시지를 없앨 수 있습니다
+		 * - @64FF00
+		 *
+		 * [추가 옵션]
+		 * if(!file_exists($this->dataFolder))
+		 *     mkdir($this->dataFolder, 0755, true);
+		 */
+		$this->saveDefaultConfig();
+
+		if(!is_file($this->getDataFolder()."PlayerLang.dat")){
+			file_put_contents($this->getDataFolder()."PlayerLang.dat", serialize([]));
+		}
+		$this->playerLang = unserialize(file_get_contents($this->getDataFolder()."PlayerLang.dat"));
+
+		if(!isset($this->playerLang["console"])){
+			$this->playerLang["console"] = $this->getConfig()->get("default-lang");
+		}
+		if(!isset($this->playerLang["rcon"])){
+			$this->playerLang["rcon"] = $this->getConfig()->get("default-lang");
+		}
+		$this->initialize();
+
+		if($this->getConfig()->get("auto-save-interval") > 0){
+			$this->getScheduler()->scheduleDelayedRepeatingTask(new SaveTask($this), $this->getConfig()->get("auto-save-interval") * 1200, $this->getConfig()->get("auto-save-interval") * 1200);
+		}
+
+		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+	}
+
+	public function onJoin(PlayerJoinEvent $event){
+		$player = $event->getPlayer();
+
+		if(!isset($this->playerLang[strtolower($player->getName())])){
+			$this->playerLang[strtolower($player->getName())] = $this->getConfig()->get("default-lang");
+		}
+		if(!$this->provider->accountExists($player)){
+			$this->getLogger()->debug("Account of '".$player->getName()."' is not found. Creating account...");
+			$this->createAccount($player, false, true);
+		}
+	}
+
+	public function onDisable(){
+		$this->saveAll();
+
+		if($this->provider instanceof Provider){
+			$this->provider->close();
+		}
+	}
+
+	public function saveAll(){
+		if($this->provider instanceof Provider){
+			$this->provider->save();
+		}
+		file_put_contents($this->getDataFolder()."PlayerLang.dat", serialize($this->playerLang));
+	}
+
+	private function replaceParameters($message, $params = []){
+		$search = ["%MONETARY_UNIT%"];
+		$replace = [$this->getMonetaryUnit()];
+
+		for($i = 0; $i < count($params); $i++){
+			$search[] = "%".($i + 1);
+			$replace[] = $params[$i];
+		}
+
+		$colors = [
+			"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "k", "l", "m", "n", "o", "r"
+		];
+		foreach($colors as $code){
+			$search[] = "&".$code;
+			$replace[] = TextFormat::ESCAPE.$code;
+		}
+
+		return str_replace($search, $replace, $message);
+	}
+
+	private function initialize(){
+		if($this->getConfig()->get("check-update")){
+			$this->checkUpdate();
+		}
+		switch(strtolower($this->getConfig()->get("provider"))){
+			case "yaml":
+			$this->provider = new YamlProvider($this);
+			break;
+			case "mysql":
+			$this->provider = new MySQLProvider($this);
+			break;
+			default:
+			$this->getLogger()->critical("Invalid database was given.");
+			return false;
+		}
+		$this->provider->open();
+
+		$this->initializeLanguage();
+		$this->getLogger()->notice("Database provider was set to: ".$this->provider->getName());
+		$this->registerCommands();
+	}
+
+	public function openProvider(){
+		if($this->provider !== null)
+			$this->provider->open();
+	}
+
+	private function checkUpdate(){
+		try{
+			$info = json_decode(Utils::getURL($this->getConfig()->get("update-host")."?version=".$this->getDescription()->getVersion()."&package_version=".self::PACKAGE_VERSION), true);
+			if(!isset($info["status"]) or $info["status"] !== true){
+				$this->getLogger()->notice("Something went wrong on update server.");
+				return false;
+			}
+			if($info["update-available"] === true){
+				$this->getLogger()->notice("Server says new version (".$info["new-version"].") of EconomyS is out. Check it out at ".$info["download-address"]);
+			}
+			$this->getLogger()->notice($info["notice"]);
+			return true;
+		}catch(\Throwable $e){
+			$this->getLogger()->logException($e);
+			return false;
+		}
+	}
+
+	private function registerCommands(){
+		$map = $this->getServer()->getCommandMap();
+
+		$commands = [
+			"mymoney" => "\\onebone\\economyapi\\command\\MyMoneyCommand",
+			"topmoney" => "\\onebone\\economyapi\\command\\TopMoneyCommand",
+			"setmoney" => "\\onebone\\economyapi\\command\\SetMoneyCommand",
+			"seemoney" => "\\onebone\\economyapi\\command\\SeeMoneyCommand",
+			"givemoney" => "\\onebone\\economyapi\\command\\GiveMoneyCommand",
+			"takemoney" => "\\onebone\\economyapi\\command\\TakeMoneyCommand",
+			"pay" => "\\onebone\\economyapi\\command\\PayCommand",
+			"setlang" => "\\onebone\\economyapi\\command\\SetLangCommand",
+			"mystatus" => "\\onebone\\economyapi\\command\\MyStatusCommand"
+		];
+		foreach($commands as $cmd => $class){
+			$map->register("economyapi", new $class($this));
+		}
+	}
+
+	private function initializeLanguage(){
+		foreach($this->getResources() as $resource){
+			if($resource->isFile() and substr(($filename = $resource->getFilename()), 0, 5) === "lang_"){
+				$this->lang[substr($filename, 5, -5)] = json_decode(file_get_contents($resource->getPathname()), true);
+			}
+		}
+		$this->lang["user-define"] = (new Config($this->getDataFolder()."messages.yml", Config::YAML, $this->lang["def"]))->getAll();
+	}
+}
+<?php
+
+/*
+ * EconomyS, the massive economy plugin with many features for PocketMine-MP
+ * Copyright (C) 2013-2017  onebone <jyc00410@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+namespace onebone\economyapi\provider;
+
+
+use onebone\economyapi\EconomyAPI;
+use pocketmine\Player;
+use pocketmine\utils\Config;
+
+class YamlProvider implements Provider{
+	/**
+	 * @var Config
+	 */
+	private $config;
+
+	/** @var EconomyAPI */
+	private $plugin;
+
+	private $money = [];
+
+	public function __construct(EconomyAPI $plugin){
+		$this->plugin = $plugin;
+	}
+
+	public function open(){
+		$this->config = new Config($this->plugin->getDataFolder() . "Money.yml", Config::YAML, ["version" => 2, "money" => []]);
+		$this->money = $this->config->getAll();
+	}
+
+	public function accountExists($player){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		return isset($this->money["money"][$player]);
+	}
+
+	public function createAccount($player, $defaultMoney = 1000){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(!isset($this->money["money"][$player])){
+			$this->money["money"][$player] = $defaultMoney;
+			return true;
+		}
+		return false;
+	}
+
+	public function removeAccount($player){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(isset($this->money["money"][$player])){
+			unset($this->money["money"][$player]);
+			return true;
+		}
+		return false;
+	}
+
+	public function getMoney($player){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(isset($this->money["money"][$player])){
+			return $this->money["money"][$player];
+		}
+		return false;
+	}
+
+	public function setMoney($player, $amount){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(isset($this->money["money"][$player])){
+			$this->money["money"][$player] = $amount;
+			$this->money["money"][$player] = round($this->money["money"][$player], 2);
+			return true;
+		}
+		return false;
+	}
+
+	public function addMoney($player, $amount){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(isset($this->money["money"][$player])){
+			$this->money["money"][$player] += $amount;
+			$this->money["money"][$player] = round($this->money["money"][$player], 2);
+			return true;
+		}
+		return false;
+	}
+
+	public function reduceMoney($player, $amount){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(isset($this->money["money"][$player])){
+			$this->money["money"][$player] -= $amount;
+			$this->money["money"][$player] = round($this->money["money"][$player], 2);
+			return true;
+		}
+		return false;
+	}
+
+	public function getAll(){
+		return isset($this->money["money"]) ? $this->money["money"] : [];
+	}
+
+	public function save(){
+		$this->config->setAll($this->money);
+		$this->config->save();
+	}
+
+	public function close(){
+		$this->save();
+	}
+
+	public function getName(){
+		return "Yaml";
+	}
+}
+<?php
+
+/*
+ * EconomyS, the massive economy plugin with many features for PocketMine-MP
+ * Copyright (C) 2013-2017  onebone <jyc00410@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+namespace onebone\economyapi\provider;
+
+use onebone\economyapi\EconomyAPI;
+
+interface Provider{
+	public function __construct(EconomyAPI $plugin);
+
+	public function open();
+
+	/**
+	 * @param \pocketmine\Player|string $player
+	 * @return bool
+	 */
+	public function accountExists($player);
+
+	/**
+	 * @param \pocketmine\Player|string $player
+	 * @param float $defaultMoney
+	 * @return bool
+	 */
+	public function createAccount($player, $defaultMoney = 1000);
+
+	/**
+	 * @param \pocketmine\Player|string $player
+	 * @return bool
+	 */
+	public function removeAccount($player);
+
+	/**
+	 * @param string $player
+	 * @return float|bool
+	 */
+	public function getMoney($player);
+
+	/**
+	 * @param \pocketmine\Player|string $player
+	 * @param float $amount
+	 * @return bool
+	 */
+	public function setMoney($player, $amount);
+
+	/**
+	 * @param \pocketmine\Player|string $player
+	 * @param float $amount
+	 * @return bool
+	 */
+	public function addMoney($player, $amount);
+
+	/**
+	 * @param \pocketmine\Player|string $player
+	 * @param float $amount
+	 * @return bool
+	 */
+	public function reduceMoney($player, $amount);
+
+	/**
+	 * @return array
+	 */
+	public function getAll();
+
+	/**
+	 * @return string
+	 */
+	public function getName();
+
+	public function save();
+	public function close();
+}
+{
+    "language": "ch",
+	"commands": {
+		"mymoney": {
+			"usage": "/mymoney",
+			"description": "查看您的金钱"
+		},
+		"topmoney": {
+			"usage": "/topmoney [页数]",
+			"description": "查看此服务器的金钱排行"
+		},
+		"setmoney": {
+			"usage": "/setmoney <玩家名称> <数值>",
+			"description": "设置玩家的金钱"
+		},
+		"seemoney": {
+			"usage": "/seemoney <玩家名称>",
+			"description": "查看玩家的金钱"
+		},
+		"givemoney": {
+			"usage": "/givemoney <玩家名称> <数值>",
+			"description": "给玩家金钱"
+		},
+		"takemoney": {
+			"usage": "/takemoney <玩家名称> <数值>",
+			"description": "拿走玩家的金钱"
+		},
+		"pay": {
+			"usage": "/pay <玩家名称> <数值>",
+			"description": "付款给玩家"
+		},
+		"setlang": {
+			"usage": "/setlang <语言>",
+			"description": "设置您的语言"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "查看您的金钱状态"
+		}
+	},
+    "language-set": "语言被设置为 %1",
+    "request-cancelled": "你的请求已被取消",
+    "player-not-connected": "玩家 %1 当前不在服务器上",
+    "player-never-connected": "服务器中不存在玩家 %1",
+    "topmoney-tag": "- 查看服务器金钱排行 (%1 of %2) -",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "付款失败",
+    "pay-success": "付款 %1 %MONETARY_UNIT% 给 %2",
+    "money-paid": "%1 付款给你 %2 %MONETARY_UNIT%",
+    "takemoney-must-be-number": "金额必须是有效数字",
+    "takemoney-invalid-number": "无效的数字",
+    "takemoney-player-lack-of-money": "%1 没有 %MONETARY_UNIT%%2 元钱. %1 剩余金额: %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "你的 %MONETARY_UNIT%%1 元钱已经被管理员偷走~ TAT",
+    "takemoney-took-money": "已经拿走 %1 的 %MONETARY_UNIT%%2 元钱",
+    "takemoney-failed": "偷钱失败~ TAT",
+    "givemoney-must-be-number": "金额必须是有效数字",
+    "givemoney-invalid-number": "无效的数字",
+    "givemoney-money-given": "有人给你了 %MONETARY_UNIT%%1 元钱",
+    "givemoney-gave-money": "已经给 %2 了%MONETARY_UNIT%%1 元钱",
+    "seemoney-seemoney": "玩家 %1 的金钱: %2",
+    "setmoney-setmoney": "玩家 %1 的金钱已经被设定为 %MONETARY_UNIT%%2 元钱",
+    "setmoney-set": "您被设置成 %1 %MONETARY_UNIT%",
+    "setmoney-failed": "设定失败~未知错误~ TAT",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 是无效的金额",
+    "mymoney-mymoney": "你身上的钱: %MONETARY_UNIT%%1",
+    "mystatus-show": "你的储蓄状态: %1%"
+}
+{
+    "language": "cs",
+    "language-set": "Byl nastaven jazyk %1 od Kvetinac97",
+    "request-cancelled": "Zadost byla zrusena",
+    "player-not-connected": "Hrac %1 neni na serveru",
+    "player-never-connected": "Hrac %1 nikdy na tomto serveru nehral",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Platba nebyla uspesna.",
+    "pay-success": "Zaplaceno %MONETARY_UNIT%%1 hraci %2.",
+    "money-paid": "%1 ti daroval %MONETARY_UNIT%%2.",
+    "takemoney-must-be-number": "Pocet musi byt cislo",
+    "takemoney-invalid-number": "Neplatne cislo",
+    "takemoney-player-lack-of-money": "%1 nema dostatek %MONETARY_UNIT%%2. %1 ma pouze%MONETARY_UNIT%%3",
+    "takemoney-money-taken": "Bylo ti odebrano %MONETARY_UNIT%%1",
+    "takemoney-took-money": "Uspesne odebrany penize hrace %1 (%MONETARY_UNIT%%2)",
+    "takemoney-failed": "Nepodarilo se ti vzit penize",
+    "givemoney-must-be-number": "Pocet penez musi byt ciselny",
+    "givemoney-invalid-number": "Neplatne cislo",
+    "givemoney-money-given": "Obdrzel jsi %MONETARY_UNIT%%1",
+    "givemoney-gave-money": "Pridano %MONETARY_UNIT%%1 hraci %2",
+    "seemoney-seemoney": "%1 ma %MONETARY_UNIT%%2",
+    "setmoney-setmoney": "Penize hrace %1 byly nastaveny na %MONETARY_UNIT%%2",
+    "setmoney-set": "Tve penize byly nastaveny na %MONETARY_UNIT%%1",
+    "setmoney-failed": "Nepodarilo se nastavit penize - Neznama chyba",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 musi byt ciselna hodnota",
+    "mymoney-mymoney": "Tve penize : %MONETARY_UNIT%%1",
+    "mystatus-show": "Moje penize : %1%"
+}
+{
+    "language": "de",
+	"commands": {
+		"mymoney": {
+			"usage": "/mymoney",
+			"description": "Schau dein Geldstand an"
+		},
+		"topmoney": {
+			"usage": "/topmoney [Seite]",
+			"description": "Schau die Topliste des Geldes an"
+		},
+		"setmoney": {			
+         "usage": "/setmoney <Spieler> <Betrag>",
+			"description": "Setz den Geldstand eines Spielers"
+		},
+		"seemoney": {
+			"usage": "/seemoney <Spieler>",
+			"description": "Schau dir den Geldstand eines Spielers an"
+		},
+		"givemoney": {
+			"usage": "/givemoney <Spieler> <Betrag>",	
+        "description": "Schenk ein Spieler Geld"
+},
+		"takemoney": {
+			"usage": "/takemoney <Spieler> <Betrag>",
+			"description": "Nimm ein Spieler Geld"
+		},
+		"pay": {
+			"usage": "/pay <Spieler> <Betrag>",
+			"description": "Überweis ein Spieler Geld"
+		},
+		"setlang": {
+			"usage": "/setlang <Sprache>",
+			"description": "Wähle eine Sprache"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "Schau dein Geld Status an"
+		}
+	},
+    "language-set": "Sprache auf %1 gesetzt von Cathesda Server Studios und MineoutPE.bplaced.net",
+    "request-cancelled": "Ihre Anfrage wurde storniert",
+    "player-not-connected": "%1 ist Offline.",
+    "player-never-connected": "%1 war noch nie auf diesen Server bitte überprüf deine Rechtschreibung.",
+    "topmoney-tag": "> Topliste (%1/%2) <",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Bei der Überweisung ist ein Fehler unterlaufen.",
+    "pay-success": "Du hast 1%%MONETARY_UNIT% an %2 überwiesen.",
+    "money-paid": "%1 hat dir %2%MONETARY_UNIT% überwiesen.",
+    "takemoney-must-be-number": "Der Betrag muss eine Zahl sein ",
+    "takemoney-invalid-number": "Ungültige Zahl",
+    "takemoney-player-lack-of-money": "%1 hat keine %2%MONETARY_UNIT%  sein  Geldstand ist %3%MONETARY_UNIT%",
+    "takemoney-money-taken": "Bei dir wurden %1%MONETARY_UNIT% entfert" ,
+    "takemoney-took-money": "Du hast %2%MONETARY_UNIT% bei %1 entfernt",
+    "takemoney-failed": "Fehler beim Ausführen des Commands",
+    "givemoney-must-be-number": "Der Betrag muss eine zahl sein",
+    "givemoney-invalid-number": "Ungültige Zahl",
+    "givemoney-money-given": "Du hast %1%MONETARY_UNIT% bekommen",
+    "givemoney-gave-money": "Du hast %1%MONETARY_UNIT% an %2 gegeben",
+    "seemoney-seemoney": "%1 Geldstand : %2%MONETARY_UNIT%",
+    "setmoney-setmoney": "%1 Geldstand wurde zu%2%MONETARY_UNIT% gesetzt",
+    "setmoney-set": "Dein Geldstand wurde zu %1%MONETARY_UNIT% gesetzt",
+    "setmoney-failed": "Unbekannter Fehler",
+    "setmoney-invalid-number": "Ungültige Zahl",
+    "mymoney-mymoney": "Dein Geldstand: %1%MONETARY_UNIT%",
+    "mystatus-show": "Dein Geld Status< : %1%"
+}
+{
+    "language": "en",
+	"commands": {
+		"mymoney": {
+			"usage": "/mymoney",
+			"description": "Shows your money"
+		},
+		"topmoney": {
+			"usage": "/topmoney [page]",
+			"description": "Shows top money of this server"
+		},
+		"setmoney": {
+			"usage": "/setmoney <player> <amount>",
+			"description": "Set money of player"
+		},
+		"seemoney": {
+			"usage": "/seemoney <player>",
+			"description": "Shows money of player"
+		},
+		"givemoney": {
+			"usage": "/givemoney <player> <amount>",
+			"description": "Gives money to player"
+		},
+		"takemoney": {
+			"usage": "/takemoney <player> <amount>",
+			"description": "Takes money from player"
+		},
+		"pay": {
+			"usage": "/pay <player> <amount>",
+			"description": "Pays money to player"
+		},
+		"setlang": {
+			"usage": "/setlang <language>",
+			"description": "Set your language"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "Shows your status of money"
+		}
+	},
+    "language-set": "Language set to %1 by onebone",
+    "request-cancelled": "Your request was cancelled",
+    "player-not-connected": "Player %1 is not online.",
+    "player-never-connected": "Player %1 was never connected.",
+    "topmoney-tag": "- Showing top money list (%1 of %2) -",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Failed to pay.",
+    "pay-success": "Paid %MONETARY_UNIT%%1 to %2.",
+    "money-paid": "%1 gave you %MONETARY_UNIT%%2.",
+    "takemoney-must-be-number": "Amount must be numeric",
+    "takemoney-invalid-number": "Invalid number",
+    "takemoney-player-lack-of-money": "%1 does not have enough %MONETARY_UNIT%%2. %1's money : %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "Your %MONETARY_UNIT%%1 have been taken",
+    "takemoney-took-money": "Taken %MONETARY_UNIT%%2 from %1",
+    "takemoney-failed": "You have failed to take money",
+    "givemoney-must-be-number": "Amount must be numeric",
+    "givemoney-invalid-number": "Invalid number",
+    "givemoney-money-given": "You have earned %MONETARY_UNIT%%1",
+    "givemoney-gave-money": "Gave %MONETARY_UNIT%%1 to %2",
+    "seemoney-seemoney": "Player %1's money : %2",
+    "setmoney-setmoney": "Player %1's money has been set to %MONETARY_UNIT%%2",
+    "setmoney-set": "Your money was set to %MONETARY_UNIT%%1",
+    "setmoney-failed": "Failed to set money due to unknown error",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 must be a numeric value",
+    "mymoney-mymoney": "Your money : %MONETARY_UNIT%%1",
+    "mystatus-show": "My money status : %1%"
+}
+{
+    "language": "fr",
+    "language-set": "Langue séléctionée: %1 par Kvetinac97 et Ad5001",
+    "request-cancelled": "Votre requète a été annulee",
+    "player-not-connected": "%1 n'est pas connecté au serveur",
+    "player-never-connected": "Le joueur %1 ne s'est jamais connecté sur ce serveur",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Erreur lors du payement.",
+    "pay-success": "Vous avez donné %MONETARY_UNIT%%1 à %2.",
+    "money-paid": "%1 vous a donné %MONETARY_UNIT%%2.",
+    "takemoney-must-be-number": "Vous devez demander une somme seulement numérique",
+    "takemoney-invalid-number": "Somme invalide",
+    "takemoney-player-lack-of-money": "%1 n'a pas %MONETARY_UNIT%%2. %1 a %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "%MONETARY_UNIT%%1 vous ont été pris",
+    "takemoney-took-money": "Vous avez pris %MONETARY_UNIT%%2 à %1",
+    "takemoney-failed": "Erreur lors de l'execution de cette commande",
+    "givemoney-must-be-number": "La somme que vous voulez donner doit être numérique",
+    "givemoney-invalid-number": "Somme invalide",
+    "givemoney-money-given": "Vous avez obtenu %MONETARY_UNIT%%1",
+    "givemoney-gave-money": "Vous avez donné %MONETARY_UNIT%%1 à %2",
+    "seemoney-seemoney": "%1 a %MONETARY_UNIT%%2",
+    "setmoney-setmoney": "L'argent de %1 est désormais %MONETARY_UNIT%%2",
+    "setmoney-set": "Vous avez désormais %MONETARY_UNIT%%1",
+    "setmoney-failed": "Erreur lors de l'execution de cette commande",
+    "setmoney-invalid-number": "La somme d'argent de %MONETARY_UNIT%%1 doit etre numérique",
+    "mymoney-mymoney": "Votre argent: %MONETARY_UNIT%%1",
+    "mystatus-show": "Mon monnaie : %1%"
+}
+{
+    "language": "id",
+    "language-set": "Bahasa diset ke %1 oleh onebone",
+    "request-cancelled": "Permintaan Anda dibatalkan",
+    "player-not-connected": "Pemain %1 tidak dalam server",
+    "player-never-connected": "Pemain%1 tidak pernah terlihat di server ini",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Gagal bayar.",
+    "pay-success": "Telah membayar %MONETARY_UNIT%%1 ke %2.",
+    "takemoney-must-be-number": "Jumlah harus berupa angka",
+    "takemoney-invalid-number": "Nomor tidak valid.",
+    "takemoney-player-lack-of-money": "%1 tidak punya %MONETARY_UNIT%%2. Uang %1: %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "%MONETARY_UNIT%%1 Anda telah diambil",
+    "takemoney-took-money": "Telah mengambil uang %1: %MONETARY_UNIT%%2",
+    "takemoney-failed": "Gagal mengambil uang",
+    "givemoney-must-be-number": "Jumlah harus berupa angka",
+    "givemoney-invalid-number": "Nomor tidak valid",
+    "givemoney-money-given": "Anda mendapatkan %MONETARY_UNIT%%1",
+    "givemoney-gave-money": "Telah memberi %MONETARY_UNIT%%1 ke %2",
+    "seemoney-seemoney": "Uang pemain %1: %2",
+    "setmoney-setmoney": "Uang pemain %1 ditetapkan ke %MONETARY_UNIT%%2",
+    "setmoney-failed": "Gagal menetapkan uang karena kesalahan yang tidak diketahui",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 adalah jumlah yang tak valid",
+    "mymoney-mymoney": "Uang Anda: %MONETARY_UNIT%%1",
+    "mystatus-show": "Status uang saya: %1%"
+}{
+    "language": "it",
+    "language-set": "Lingua settata a %1 by luca28pet",
+    "request-cancelled": "La tua richiesta e stata cancellata",
+    "player-not-connected": "IL player %1 non e online nel server",
+    "player-never-connected": "Il player %1 non esiste",
+    "topmoney-format": "[%1] %2: %3",
+    "takemoney-must-be-number": "Devi specificare una cifra valida",
+    "takemoney-invalid-number": "Numero non valido",
+    "takemoney-player-lack-of-money": "%1 non ha %MONETARY_UNIT%%2. Soldi di %1 : %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "I tuoi %MONETARY_UNIT%%1 sono stati prelevati",
+    "takemoney-took-money": "Sono stai presi a %1 %MONETARY_UNIT%%2",
+    "takemoney-failed": "Hai fallito a prendere il denaro",
+    "givemoney-must-be-number": "Devi specificare una cifra valida",
+    "givemoney-invalid-number": "Numero non valido",
+    "givemoney-money-given": "%MONETARY_UNIT%%1 sono stati aggiunti ai tuoi soldi",
+    "givemoney-gave-money": "Sono stati dati %MONETARY_UNIT%%1 a %2",
+    "seemoney-seemoney": "Soldi di %1 : %2",
+    "setmoney-setmoney": "I soldi di %1 sono stati settati a %MONETARY_UNIT%%2",
+    "setmoney-failed": "Hai fallito a settare i soldi a causa di un errore sconosciuto.",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 non e un ammontare valido",
+    "mymoney-mymoney": "I tuoi soldi : %MONETARY_UNIT%%1",
+    "mystatus-show": "Lo stato dei miei soldi : %1%"
+}{
+    "language": "jp",
+	"commands": {
+		"mymoney": {
+			"uasge": "/mymoney",
+			"description": "自分の持っている所持金を表示します"
+		},
+		"topmoney": {
+			"uasge": "/topmoney [ページ]",
+			"description": "このサーバーのプレーヤー所持金ランキングを表示します"
+		},
+		"setmoney": {
+			"usage": "/setmoney <プレーヤー> <数値>",
+			"description": "プレーヤーの所持金を設定します"
+		},
+		"seemoney": {
+			"usage": "/seemoney <プレーヤー>",
+			"description": "プレーヤーの所持金を表示します"
+		},
+		"givemoney": {
+			"usage": "/givemoney <プレーヤー> <数値>",
+			"description": "プレーヤーにお金を支給します"
+		},
+		"takemoney": {
+			"usage": "/takemoney <プレーヤー> <数値>",
+			"description": "プレーヤーからお金を奪います"
+		},
+		"pay": {
+			"usage": "/pay <プレーヤー> <数値>",
+			"description": "プレーヤーに支払いします"
+		},
+		"setlang": {
+			"usage": "/setlang <言語>",
+			"description": "自分の言語を選びます"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "自分の所持金の状況を表示します"
+		}
+	},
+    "language-set": "言語を%1に変更しました。",
+    "request-cancelled": "リクエストはキャンセルされました。",
+    "player-not-connected": "%1はオフラインです。",
+    "player-never-connected": "%1は存在しません。",
+    "topmoney-tag": "- トップランキングを表示 (%2の%1ページ) -",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "支払いに失敗しました。",
+    "pay-success": "%2に%MONETARY_UNIT%%1支払いました。",
+    "money-paid": "%1があなたに%MONETARY_UNIT%%2支払いました。",
+    "takemoney-must-be-number": "金額は数字で入力してください。",
+    "takemoney-invalid-number": "無効な数値です。",
+    "takemoney-player-lack-of-money": "%1は%MONETARY_UNIT%%2を持っていません。 %1の所持金 : %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "所持金が%MONETARY_UNIT%%1減殺されました。",
+    "takemoney-took-money": "%1の所持金を%MONETARY_UNIT%%2減殺しました。",
+    "takemoney-failed": "所持金の減殺に失敗しました。",
+    "givemoney-must-be-number": "金額は数字で入力してください。",
+    "givemoney-invalid-number": "無効な数値です。",
+    "givemoney-money-given": "所持金が%MONETARY_UNIT%%1増えました。",
+    "givemoney-gave-money": "%2の所持金を%MONETARY_UNIT%%1増やしました。",
+    "seemoney-seemoney": "%1の所持金 : %2",
+    "setmoney-setmoney": "%1の所持金を%MONETARY_UNIT%%2にしました。",
+    "setmoney-set": "所持金が%MONETARY_UNIT%%1に設定されました。",
+    "setmoney-failed": "不明なエラーにより所持金の設定に失敗しました。",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1は無効な数値です。",
+    "mymoney-mymoney": "現在の所持金 : %MONETARY_UNIT%%1",
+    "mystatus-show": "あなたの所持金は全体の%1%を占めています。"
+}
+{
+    "language": "ko",
+	"commands": {
+		"mymoney": {
+			"usage": "/mymoney",
+			"description": "자신의 돈을 보여줍니다"
+		},
+		"topmoney": {
+			"usage": "/topmoney [페이지]",
+			"description": "이 서버의 돈 순위를 보여줍니다"
+		},
+		"setmoney": {
+			"usage": "/setmoney <플레이어> <값>",
+			"description": "플레이어의 돈을 설정합니다"
+		},
+		"seemoney": {
+			"usage": "/seemoney <플레이어>",
+			"description": "플레이어의 돈을 보여줍니다"
+		},
+		"givemoney": {
+			"usage": "/givemoney <플레이어> <값>",
+			"description": "플레이어에게 돈을 지급합니다"
+		},
+		"takemoney": {
+			"usage": "/takemoney <플레이어> <값>",
+			"description": "플레이어에게서 돈을 빼앗습니다"
+		},
+		"pay": {
+			"usage": "/pay <플레이어> <값>",
+			"description": "플레이어에게 돈을 지불합니다"
+		},
+		"setlang": {
+			"usage": "/setlang <언어>",
+			"description": "언어를 선택합니다"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "자신의 돈의 상태를 봅니다"
+		}
+	},
+    "language-set": "언어가 onebone님의 %1(으)로 설정되었습니다.",
+    "request-cancelled": "요청이 거부되었습니다.",
+    "player-not-connected": "%1님은 서버에 접속하지 않았습니다.",
+    "player-never-connected": "%1님은 서버에 접속한 적이 없습니다.",
+    "topmoney-tag": "- 돈 순위를 표시합니다 (%1 / %2 페이지) -",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "돈을 지불할 수 없습니다.",
+    "pay-success": "%2님에게 %MONETARY_UNIT%%1을(를) 지불하였습니다.",
+    "money-paid": "%1님이 %MONETARY_UNIT%%2을(를) 지불하였습니다.",
+    "takemoney-must-be-number": "수량은 숫자여야 합니다.",
+    "takemoney-invalid-number": "잘못된 숫자입니다.",
+    "takemoney-player-lack-of-money": "%1님은 %MONETARY_UNIT%%2만큼의 돈이 없습니다. %1님의 돈: %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "%MONETARY_UNIT%%1을(를) 빼앗기셨습니다.",
+    "takemoney-took-money": "%1님의 %MONETARY_UNIT%%2을(를) 빼앗으셨습니다.",
+    "takemoney-failed": "돈을 빼앗을 수 없습니다.",
+    "givemoney-must-be-number": "수량은 숫자여야 합니다.",
+    "givemoney-invalid-number": "잘못된 숫자입니다.",
+    "givemoney-money-given": "%MONETARY_UNIT%%1을(를) 받으셨습니다.",
+    "givemoney-gave-money": "%2님에게 %MONETARY_UNIT%%1를 주셨습니다.",
+    "seemoney-seemoney": "%1님의 돈: %MONETARY_UNIT%%2",
+    "setmoney-setmoney": "%1님의 돈이 %MONETARY_UNIT%%2(으)로 설정되었습니다.",
+    "setmoney-set": "돈이 %MONETARY_UNIT%%1(으)로 설정되었습니다.",
+    "setmoney-failed": "돈을 설정할 수 없습니다.",
+    "setmoney-invalid-number": "%1은(는) 잘못된 숫자입니다.",
+    "mymoney-mymoney": "내 돈: %MONETARY_UNIT%%1",
+    "mystatus-show": "내 돈 상황: %1%"
+}
+{
+    "language": "nl",
+    "language-set": "taal veranderd naar %1 by driesboy",
+    "request-cancelled": "jou aanvraag is geannuleerd",
+    "player-not-connected": "speler %1 zit niet op de server",
+    "player-never-connected": "speler %1 is nog nooit op de server geweest",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "kan niet betalen.",
+    "pay-success": "%MONETARY_UNIT%%1 betaald aan %2.",
+    "money-paid": "%1 geeft jou %MONETARY_UNIT%%2.",
+    "takemoney-must-be-number": "hoeveelheid is niet in nummers",
+    "takemoney-invalid-number": "verkeerd nummer",
+    "takemoney-player-lack-of-money": "%1 heeft niet genoeg geld %MONETARY_UNIT%%2. %1's geld : %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "u %MONETARY_UNIT%%1 is weg genomen",
+    "takemoney-took-money": "%1's heeft geld genomen %MONETARY_UNIT%%2",
+    "takemoney-failed": "kan geen geld nemen door een fout",
+    "givemoney-must-be-number": "hoeveelheid moet in nummers",
+    "givemoney-invalid-number": "verkeerd nummer",
+    "givemoney-money-given": "je hebt%MONETARY_UNIT%%1 gekregen",
+    "givemoney-gave-money": "geef %MONETARY_UNIT%%1 aan %2",
+    "seemoney-seemoney": "speler %1's geld : %2",
+    "setmoney-setmoney": "speler %1’s money is verzet naar %MONETARY_UNIT%%2",
+    "setmoney-set": "jou geld is veranderd naar %MONETARY_UNIT%%1",
+    "setmoney-failed": "kan geen geld veranderen door een fout",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 moet nummers hebben",
+    "mymoney-mymoney": "jou geld : %MONETARY_UNIT%%1",
+    "mystatus-show": "mijn geld status : %1%"
+}
+{
+    "language": "ru",
+    "language-set": "Язык сменен на %1 ; перевод Рвач Виктора и Ивана Дмитриева",
+    "request-cancelled": "Запрос отменен",
+    "player-not-connected": "Игрок %1 оффлайн",
+    "player-never-connected": "Игрок %1 никогда не был на сервере",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Не удалось передать деньги",
+    "pay-success": "Игроку %2 выплачено %MONETARY_UNIT%%1",
+    "takemoney-must-be-number": "Сумма должна быть числом",
+    "takemoney-invalid-number": "Неправильное число",
+    "takemoney-player-lack-of-money": "У игрока %1 нет %MONETARY_UNIT%%2. Баланс %1 : %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "У вас было взято %MONETARY_UNIT%%1",
+    "takemoney-took-money": "У игрока %1 было взято %MONETARY_UNIT%%2",
+    "takemoney-failed": "Не удалось взять деньги",
+    "givemoney-must-be-number": "Сумма должна быть числом",
+    "givemoney-invalid-number": "Неправильное число",
+    "givemoney-money-given": "Вы получили %MONETARY_UNIT%%1",
+    "givemoney-gave-money": "Игроку %2 было выдано %MONETARY_UNIT%%1",
+    "seemoney-seemoney": "Баланс игрока %1 : %2",
+    "setmoney-setmoney": "Баланс игрока %1 был установлен на %MONETARY_UNIT%%2",
+    "setmoney-set": "Ваш баланс был изменен на %MONETARY_UNIT%%1",
+    "setmoney-failed": "Не удалось установить баланс",
+    "setmoney-invalid-number": "MONETARY_UNIT%%1 - неправильная сумма",
+    "mymoney-mymoney": "Ваш баланс : %MONETARY_UNIT%%1",
+    "mystatus-show": "Ваш финансовый статус : %1%"
+}
+{
+    "language": "uk",
+	"commands": {
+		"mymoney": {
+			"usage": "/mymoney",
+			"description": "Показує ваш баланс"
+		},
+		"topmoney": {
+			"usage": "/topmoney [сторінка]",
+			"description": "Показує багачів серверу"
+		},
+		"setmoney": {
+			"usage": "/setmoney <гравець> <кількість>",
+			"description": "Встановлює баланс для гравця"
+		},
+		"seemoney": {
+			"usage": "/seemoney <гравець>",
+			"description": "Показує баланс гравця"
+		},
+		"givemoney": {
+			"usage": "/givemoney <гравець> <кількість>",
+			"description": "Видає гроші гравцю"
+		},
+		"takemoney": {
+			"usage": "/takemoney <гравець> <кількість>",
+			"description": "Забирає гроші у гравця"
+		},
+		"pay": {
+			"usage": "/pay <гравець> <кількість>",
+			"description": "Передає гравцю гроші"
+		},
+		"setlang": {
+			"usage": "/setlang <мова>",
+			"description": "Встановлює мову"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "Показує статус Ваших грошей"
+		}
+	},
+    "language-set": "Встановлено мову %1 (перекладено SMLR)",
+    "request-cancelled": "Ваш запит було відхилено",
+    "гравець-not-connected": "Гравець %1 зараз не грає",
+    "гравець-never-connected": "Гравця %1 не існує",
+    "topmoney-tag": "- Список багачів серверу (%1 з %2) -",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "Помилка оплати.",
+    "pay-success": "Передано %MONETARY_UNIT%%1 до %2.",
+    "money-paid": "%1 передав Вам %MONETARY_UNIT%%2.",
+    "takemoney-must-be-number": "Кількість має бути чисельним значенням",
+    "takemoney-invalid-number": "Неправильна кількість",
+    "takemoney-гравець-lack-of-money": "%1 не має %MONETARY_UNIT%%2. Баланс %1 : %MONETARY_UNIT%%3",
+    "takemoney-money-taken": "З Вас знято %MONETARY_UNIT%%1",
+    "takemoney-took-money": "Ви зняли з гравця %1 %MONETARY_UNIT%%2",
+    "takemoney-failed": "Помилка зняття",
+    "givemoney-must-be-number": "Кількість має бути чисельним значенням",
+    "givemoney-invalid-number": "Неправильна кількість",
+    "givemoney-money-given": "Ви отримали %MONETARY_UNIT%%1",
+    "givemoney-gave-money": "Видано %MONETARY_UNIT%%1 гравцю %2",
+    "seemoney-seemoney": "Баланс %1 : %MONETARY_UNIT%%2",
+    "setmoney-setmoney": "Баланс гравця %1 змінено на %MONETARY_UNIT%%2",
+    "setmoney-set": "Ваш баланс змінено на %MONETARY_UNIT%%1",
+    "setmoney-failed": "Помилка зміни балансу",
+    "setmoney-invalid-number": "%MONETARY_UNIT%%1 має бути чисельним значенням",
+    "mymoney-mymoney": "Ваш баланс : %MONETARY_UNIT%%1",
+    "mystatus-show": "Статус : %1%"
+}
+{
+    "language": "zh",
+	"commands": {
+		"mymoney": {
+			"usage": "/mymoney",
+			"description": "查看您的金錢"
+		},
+		"topmoney": {
+			"usage": "/topmoney [頁數]",
+			"description": "查看此伺服器的金錢排行"
+		},
+		"setmoney": {
+			"usage": "/setmoney <玩家名稱> <數值>",
+			"description": "設定玩家的金錢"
+		},
+		"seemoney": {
+			"usage": "/seemoney <玩家名稱>",
+			"description": "查看玩家的金錢"
+		},
+		"givemoney": {
+			"usage": "/givemoney <玩家名稱> <數值>",
+			"description": "給玩家金錢"
+		},
+		"takemoney": {
+			"usage": "/takemoney <玩家名稱> <數值>",
+			"description": "拿走玩家的金錢"
+		},
+		"pay": {
+			"usage": "/pay <玩家名稱> <數值>",
+			"description": "付款給玩家"
+		},
+		"setlang": {
+			"usage": "/setlang <語言>",
+			"description": "設定您的語言"
+		},
+		"mystatus": {
+			"usage": "/mystatus",
+			"description": "查看您的金錢狀態"
+		}
+	},
+    "language-set": "語言被設定為 %1",
+    "request-cancelled": "您的請求已被取消",
+    "player-not-connected": "玩家 %1 目前不在伺服器上",
+    "player-never-connected": "伺服器中不存在玩家 %1",
+    "topmoney-tag": "- 查看伺服器金錢排行 (%1 of %2) -",
+    "topmoney-format": "[%1] %2: %3",
+    "pay-failed": "付款失敗",
+    "pay-success": "付款 %1 %MONETARY_UNIT% 給 %2",
+    "money-paid": "%1 付款給你 %2 %MONETARY_UNIT%",
+    "takemoney-must-be-number": "金額必須是有效數字",
+    "takemoney-invalid-number": "無效的數字",
+    "takemoney-player-lack-of-money": "%1 沒有 %2 %MONETARY_UNIT% . %1 剩餘金額: %3 %MONETARY_UNIT%",
+    "takemoney-money-taken": "您的 %1 %MONETARY_UNIT% 已經被管理員拿走~ ",
+    "takemoney-took-money": "已經拿走 %1 的 %2 %MONETARY_UNIT%",
+    "takemoney-failed": "拿錢失敗",
+    "givemoney-must-be-number": "金額必須是有效數字",
+    "givemoney-invalid-number": "無效的數字",
+    "givemoney-money-given": "有人給您了 %1 %MONETARY_UNIT%",
+    "givemoney-gave-money": "已經給 %2 了%1 %MONETARY_UNIT%",
+    "seemoney-seemoney": "玩家 %1 的金錢: %2",
+    "setmoney-setmoney": "玩家 %1 的金錢已經被設定為 %2 %MONETARY_UNIT%",
+    "setmoney-set": "您被設定成 %1 %MONETARY_UNIT%",
+    "setmoney-failed": "設定失敗~未知錯誤~",
+    "setmoney-invalid-number": "%1 %MONETARY_UNIT% 是無效的金額",
+    "mymoney-mymoney": "您身上的錢: %1 %MONETARY_UNIT%",
+    "mystatus-show": "您錢的狀態 : %1%"
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\event\TranslationContainer;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+
+class MyMoneyCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("mymoney");
+		parent::__construct("mymoney", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.mymoney");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		if($sender instanceof Player){
+			$money = $this->plugin->myMoney($sender);
+			$sender->sendMessage($this->plugin->getMessage("mymoney-mymoney", [$money]));
+			return true;
+		}
+		$sender->sendMessage(TextFormat::RED."Please run this command in-game.");
+		return true;
+	}
+}
+<?php
+
+/*
+ * EconomyS, the massive economy plugin with many features for PocketMine-MP
+ * Copyright (C) 2013-2017  onebone <jyc00410@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+
+use onebone\economyapi\EconomyAPI;
+use onebone\economyapi\task\SortTask;
+
+class TopMoneyCommand extends Command{
+	/** @var EconomyAPI */
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("topmoney");
+		parent::__construct("topmoney", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.topmoney");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)) return false;
+
+		$page = (int)array_shift($params);
+
+		$server = $this->plugin->getServer();
+
+		$banned = [];
+		foreach($server->getNameBans()->getEntries() as $entry){
+			if($this->plugin->accountExists($entry->getName())){
+				$banned[] = $entry->getName();
+			}
+		}
+		$ops = [];
+		foreach($server->getOps()->getAll() as $op){
+			if($this->plugin->accountExists($op)){
+				$ops[] = $op;
+			}
+		}
+
+		$task = new SortTask($sender->getName(), $this->plugin->getAllMoney(), $this->plugin->getConfig()->get("add-op-at-rank"), $page, $ops, $banned);
+		$server->getAsyncPool()->submitTask($task);
+		return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\event\TranslationContainer;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+
+class SetMoneyCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("setmoney");
+		parent::__construct("setmoney", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.setmoney");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		$player = array_shift($params);
+		$amount = array_shift($params);
+
+		if(!is_numeric($amount)){
+			$sender->sendMessage(TextFormat::RED . "Usage: " . $this->getUsage());
+			return true;
+		}
+
+		if(($p = $this->plugin->getServer()->getPlayer($player)) instanceof Player){
+			$player = $p->getName();
+		}
+
+		$result = $this->plugin->setMoney($player, $amount);
+		switch($result){
+			case EconomyAPI::RET_INVALID:
+			$sender->sendMessage($this->plugin->getMessage("setmoney-invalid-number", [$amount], $sender->getName()));
+			break;
+			case EconomyAPI::RET_NO_ACCOUNT:
+			$sender->sendMessage($this->plugin->getMessage("player-never-connected", [$player], $sender->getName()));
+			break;
+			case EconomyAPI::RET_CANCELLED:
+			$sender->sendMessage($this->plugin->getMessage("setmoney-failed", [], $sender->getName()));
+			break;
+			case EconomyAPI::RET_SUCCESS:
+			$sender->sendMessage($this->plugin->getMessage("setmoney-setmoney", [$player, $amount], $sender->getName()));
+
+			if($p instanceof Player){
+				$p->sendMessage($this->plugin->getMessage("setmoney-set", [$amount], $p->getName()));
+			}
+			break;
+			default:
+			$sender->sendMessage("WTF");
+		}
+		return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+
+class SeeMoneyCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("seemoney");
+		parent::__construct("seemoney", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.seemoney");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		$player = array_shift($params);
+		if(trim($player) === ""){
+			$sender->sendMessage(TextFormat::RED . "Usage: " . $this->getUsage());
+			return true;
+		}
+
+		if(($p = $this->plugin->getServer()->getPlayer($player)) instanceof Player){
+			$player = $p->getName();
+		}
+
+		$money = $this->plugin->myMoney($player);
+		if($money !== false){
+			$sender->sendMessage($this->plugin->getMessage("seemoney-seemoney", [$player, $money], $sender->getName()));
+		}else{
+			$sender->sendMessage($this->plugin->getMessage("player-never-connected", [$player], $sender->getName()));
+		}
+		return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+
+class GiveMoneyCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("givemoney");
+		parent::__construct("givemoney", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.givemoney");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		$player = array_shift($params);
+		$amount = array_shift($params);
+
+		if(!is_numeric($amount)){
+			$sender->sendMessage(TextFormat::RED . "Usage: " . $this->getUsage());
+			return true;
+		}
+
+		if(($p = $this->plugin->getServer()->getPlayer($player)) instanceof Player){
+			$player = $p->getName();
+		}
+
+		$result = $this->plugin->addMoney($player, $amount);
+		switch($result){
+			case EconomyAPI::RET_INVALID:
+			$sender->sendMessage($this->plugin->getMessage("givemoney-invalid-number", [$amount], $sender->getName()));
+			break;
+			case EconomyAPI::RET_SUCCESS:
+			$sender->sendMessage($this->plugin->getMessage("givemoney-gave-money", [$amount, $player], $sender->getName()));
+
+			if($p instanceof Player){
+				$p->sendMessage($this->plugin->getMessage("givemoney-money-given", [$amount], $sender->getName()));
+			}
+			break;
+			case EconomyAPI::RET_CANCELLED:
+			$sender->sendMessage($this->plugin->getMessage("request-cancelled", [], $sender->getName()));
+			break;
+			case EconomyAPI::RET_NO_ACCOUNT:
+			$sender->sendMessage($this->plugin->getMessage("player-never-connected", [$player], $sender->getName()));
+			break;
+		}
+        return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+
+class TakeMoneyCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("takemoney");
+		parent::__construct("takemoney", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.takemoney");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		$player = array_shift($params);
+		$amount = array_shift($params);
+
+		if(!is_numeric($amount)){
+			$sender->sendMessage(TextFormat::RED . "Usage: " . $this->getUsage());
+			return true;
+		}
+
+		if(($p = $this->plugin->getServer()->getPlayer($player)) instanceof Player){
+			$player = $p->getName();
+		}
+
+		if($amount < 0){
+			$sender->sendMessage($this->plugin->getMessage("takemoney-invalid-number", [$amount], $sender->getName()));
+			return true;
+		}
+
+		$result = $this->plugin->reduceMoney($player, $amount);
+		switch($result){
+			case EconomyAPI::RET_INVALID:
+			$sender->sendMessage($this->plugin->getMessage("takemoney-player-lack-of-money", [$player, $amount, $this->plugin->myMoney($player)], $sender->getName()));
+			break;
+			case EconomyAPI::RET_SUCCESS:
+			$sender->sendMessage($this->plugin->getMessage("takemoney-took-money", [$player, $amount], $sender->getName()));
+
+			if($p instanceof Player){
+				$p->sendMessage($this->plugin->getMessage("takemoney-money-taken", [$amount], $sender->getName()));
+			}
+			break;
+			case EconomyAPI::RET_CANCELLED:
+			$sender->sendMessage($this->plugin->getMessage("takemoney-failed", [], $sender->getName()));
+			break;
+			case EconomyAPI::RET_NO_ACCOUNT:
+			$sender->sendMessage($this->plugin->getMessage("player-never-connected", [$player], $sender->getName()));
+			break;
+		}
+
+		return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+use onebone\economyapi\event\money\PayMoneyEvent;
+
+class PayCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("pay");
+		parent::__construct("pay", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.pay");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		if(!$sender instanceof Player){
+			$sender->sendMessage(TextFormat::RED . "Please run this command in-game.");
+			return true;
+		}
+
+		$player = array_shift($params);
+		$amount = array_shift($params);
+
+		if(!is_numeric($amount)){
+			$sender->sendMessage(TextFormat::RED . "Usage: " . $this->getUsage());
+			return true;
+		}
+
+		if(($p = $this->plugin->getServer()->getPlayer($player)) instanceof Player){
+			$player = $p->getName();
+		}
+
+		if(!$p instanceof Player and $this->plugin->getConfig()->get("allow-pay-offline", true) === false){
+			$sender->sendMessage($this->plugin->getMessage("player-not-connected", [$player], $sender->getName()));
+			return true;
+		}
+
+		if(!$this->plugin->accountExists($player)){
+			$sender->sendMessage($this->plugin->getMessage("player-never-connected", [$player], $sender->getName()));
+			return true;
+		}
+
+		$this->plugin->getServer()->getPluginManager()->callEvent($ev = new PayMoneyEvent($this->plugin, $sender->getName(), $player, $amount));
+
+		$result = EconomyAPI::RET_CANCELLED;
+		if(!$ev->isCancelled()){
+			$result = $this->plugin->reduceMoney($sender, $amount);
+		}
+
+		if($result === EconomyAPI::RET_SUCCESS){
+			$this->plugin->addMoney($player, $amount, true);
+
+			$sender->sendMessage($this->plugin->getMessage("pay-success", [$amount, $player], $sender->getName()));
+			if($p instanceof Player){
+				$p->sendMessage($this->plugin->getMessage("money-paid", [$sender->getName(), $amount], $sender->getName()));
+			}
+		}else{
+			$sender->sendMessage($this->plugin->getMessage("pay-failed", [$player, $amount], $sender->getName()));
+		}
+		return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\Command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+use onebone\economyapi\EconomyAPI;
+
+class SetLangCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("setlang");
+		parent::__construct("setlang", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.setlang");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		$lang = array_shift($params);
+		if(trim($lang) === ""){
+			$sender->sendMessage(TextFormat::RED . "Usage: " . $this->getUsage());
+			return true;
+		}
+
+		if($this->plugin->setPlayerLanguage($sender->getName(), $lang)){
+			$sender->sendMessage($this->plugin->getMessage("language-set", [$lang], $sender->getName()));
+		}else{
+			$sender->sendMessage(TextFormat::RED . "There is no language such as $lang");
+		}
+		return true;
+	}
+}
+<?php
+
+namespace onebone\economyapi\command;
+
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\Player;
+
+use onebone\economyapi\EconomyAPI;
+
+class MyStatusCommand extends Command{
+	private $plugin;
+
+	public function __construct(EconomyAPI $plugin){
+		$desc = $plugin->getCommandMessage("mystatus");
+		parent::__construct("mystatus", $desc["description"], $desc["usage"]);
+
+		$this->setPermission("economyapi.command.mystatus");
+
+		$this->plugin = $plugin;
+	}
+
+	public function execute(CommandSender $sender, string $label, array $params): bool{
+		if(!$this->plugin->isEnabled()) return false;
+		if(!$this->testPermission($sender)){
+			return false;
+		}
+
+		if(!$sender instanceof Player){
+			$sender->sendMessage(TextFormat::RED . "Please run this command in-game.");
+			return true;
+		}
+
+		$money = $this->plugin->getAllMoney();
+
+		$allMoney = 0;
+		foreach($money as $m){
+			$allMoney += $m;
+		}
+		$topMoney = 0;
+		if($allMoney > 0){
+			$topMoney = round((($money[strtolower($sender->getName())] / $allMoney) * 100), 2);
+		}
+
+		$sender->sendMessage($this->plugin->getMessage("mystatus-show", [$topMoney], $sender->getName()));
+		return true;
+	}
+}
+<?php
+
+/*
+ * EconomyS, the massive economy plugin with many features for PocketMine-MP
+ * Copyright (C) 2013-2017  onebone <jyc00410@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+namespace onebone\economyapi\task;
+
+use onebone\economyapi\EconomyAPI;
+
+use pocketmine\scheduler\Task;
+
+class SaveTask extends Task {
+    private $plugin;
+	public function __construct(EconomyAPI $plugin){
+		$this->plugin = $plugin;
+	}
+
+	public function onRun(int $currentTick){
+		$this->plugin->saveAll();
+	}
+}

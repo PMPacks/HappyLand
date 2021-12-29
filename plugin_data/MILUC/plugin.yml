@@ -1,0 +1,22 @@
+name: MILUC
+main: ML\miluc
+version: 2.5.0
+author: Team-GCP
+api: 3.0.0
+description: Plugin Mị Lực
+commands:
+  miluc:
+   description: Help Mị Lực
+   default: true
+  diemmiluc:
+   description: Xem Mị Lực
+   default: true
+  themmiluc:
+   description: Add Mi Luc
+   default: op
+  trumiluc:
+   description: Reduce Mi Lic
+   default: op
+  topmiluc:
+   description: Reduce Mi Luc
+   default: true

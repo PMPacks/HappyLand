@@ -1,0 +1,81 @@
+version: 0.0.2
+#usage of EconomyAPI to add money set it to true if you have the plugin
+#to false if you dont have the plugin
+#IF YOU HAVE ANOTHER PLUGIN SET IT TO FALSE!
+usage_of_EconomyAPI: "true"
+#THE ID OF THE BLOCK OF LUCKYBLOCK 19 for sponge
+LuckyBlockId: 1
+#if you change the method it will crash..
+#20 possibility
+Chance-0:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-1:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-2:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-3:
+  Type: money
+  #if type is money 1option money to add to the player
+  #usage of economyAPI
+  moneyToAdd: 5000
+Chance-4:
+  Type: null
+  #if type is null anytthing to do
+Chance-5:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-6:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-7:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-8:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-9:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-10:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-11:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-12:
+  Type: money
+  moneyToAdd: 3000
+Chance-13:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-14:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-15:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-16:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-17:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-18:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-19:
+  Type: null
+  #if type is null anything to do it will do anything
+Chance-20:
+  Type: null
+  #if type is null anything to do it will do anything
+
+#TAGS
+#TAGS FOR COMMANDS
+# :nameofplayer: -> the name of the player
+# 
+#
+#COMMANDS WILL BE UPDATED IN FUTURE UPDATE

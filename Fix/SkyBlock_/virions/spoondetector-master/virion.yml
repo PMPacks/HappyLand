@@ -1,0 +1,5 @@
+name: SpoonDetector
+version: 0.0.1
+antigen: spoondetector
+php: [7.0, 7.2]
+author: Falk

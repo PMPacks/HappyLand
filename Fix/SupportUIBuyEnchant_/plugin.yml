@@ -1,0 +1,10 @@
+name: SupportUIBuyEnchant
+main: NghiaNP\Main
+api: 3.0.0
+author: NghiaNP
+description: Support For BuyEnchant!
+version: 1.0
+commands:
+ buyecui:
+  usage: /buyecui
+  

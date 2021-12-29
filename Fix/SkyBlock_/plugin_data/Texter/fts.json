@@ -1,0 +1,20 @@
+{
+    "RustedSpawn": {
+        "napthe": {
+            "Xvec": "8.0",
+            "Yvec": "147.8",
+            "Zvec": "11.1",
+            "TITLE": "§l§a↪§b DONATE §a⤵",
+            "TEXT": "§l§1•§a Bạn có thẻ nạp thẻ cho server tại\n§l§c ♦§b Facebook:§6 facebook.com/Http.SextopOne.net\n§l§c♦§e Nạp tại server bằng lệnh:§d /napthecham\n§l§1•§f Số tiền bạn nạp sẽ góp ích rất nhiều",
+            "OWNER": "phuongaz"
+        },
+        "welcome": {
+            "Xvec": "-6.1",
+            "Yvec": "148.8",
+            "Zvec": "-0.6",
+            "TITLE": "§l§a-+=[§k§e|§r§a§l]§6§l AURA KINGDOM §a[§k§e|§r§l§a]=+-",
+            "TEXT": "§l§e⚜§b Chào mừng người chơi đến với máy chủ §e⚜\n§l§c•§a Máy chủ skyblock Việt Nam\n§c§l•§d /sb help§b để xem cách chơi nào",
+            "OWNER": "phuongaz"
+        }
+    }
+}

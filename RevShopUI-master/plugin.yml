@@ -1,0 +1,9 @@
+name: RevShopUI
+main: RevShopUI\Main
+version: 1.0.0
+api: 3.0.0
+author: DeveloperNeb101
+description: Implements a ShopUI for your server with Mobspawner support!
+commands:
+ shop:
+  description: Opens the shop gui

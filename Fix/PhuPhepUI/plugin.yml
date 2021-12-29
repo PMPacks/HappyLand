@@ -1,0 +1,11 @@
+name: PhuPhepUI
+main: MrDinoDuck\PhuPhepUI\Main
+version: 0.0.1
+api: 3.0.0
+load: POSTWORLD
+author: MrDinoDuck
+description: "BuyECUI cho Nguyễn Khang :3"
+commands:
+ buyecui:
+  description: "BuyECUI"
+  usage: "/buyec"

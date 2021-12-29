@@ -1,0 +1,8 @@
+name: BuyFix
+main: BuyFix\Main
+author: phuongaz
+version: 1.0
+api: 3.0.0
+commands:
+ fix:
+  description: sửa chữa vật phẩm trên tay

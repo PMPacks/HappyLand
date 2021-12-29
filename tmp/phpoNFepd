@@ -1,0 +1,1852 @@
+<?php
+namespace falkirks\minereset;
+
+
+use falkirks\minereset\command\AboutCommand;
+use falkirks\minereset\command\CreateCommand;
+use falkirks\minereset\command\DestroyCommand;
+use falkirks\minereset\command\ListCommand;
+use falkirks\minereset\command\MineCommand;
+use falkirks\minereset\command\ReportCommand;
+use falkirks\minereset\command\ResetAllCommand;
+use falkirks\minereset\command\ResetCommand;
+use falkirks\minereset\command\SetCommand;
+use falkirks\minereset\listener\CreationListener;
+use falkirks\minereset\listener\RegionBlockerListener;
+use falkirks\minereset\store\EntityStore;
+use falkirks\minereset\store\YAMLStore;
+use falkirks\minereset\task\ScheduledResetTaskPool;
+use falkirks\minereset\util\DebugDumpFactory;
+use pocketmine\level\Level;
+use pocketmine\plugin\PluginBase;
+use pocketmine\utils\Config;
+
+
+/**
+ * MineReset is a powerful mine resetting tool for PocketMine
+ *
+ * Class MineReset
+ * @package falkirks\minereset
+ */
+class MineReset extends PluginBase{
+
+    /** @var  MineManager */
+    private $mineManager;
+    /** @var  ResetProgressManager */
+    private $resetProgressManager;
+    /** @var  RegionBlockerListener */
+    private $regionBlockerListener;
+    /** @var  MineCommand */
+    private $mainCommand;
+    /** @var DebugDumpFactory */
+    private $debugDumpFactory;
+
+    /** @var  bool */
+    private static $supportsChunkSetting = null;
+
+    /** @var  CreationListener */
+    private $creationListener;
+
+    public function onEnable(){
+        self::detectChunkSetting();
+
+        @mkdir($this->getDataFolder());
+
+        $this->debugDumpFactory = new DebugDumpFactory($this);
+
+        $this->mineManager = new MineManager($this, new YAMLStore(new Config($this->getDataFolder() . "mines.yml", Config::YAML, [])));
+
+        $this->resetProgressManager = new ResetProgressManager($this);
+
+        $this->regionBlockerListener = new RegionBlockerListener($this);
+        $this->getServer()->getPluginManager()->registerEvents($this->regionBlockerListener, $this);
+
+        $this->creationListener = new CreationListener($this);
+        $this->getServer()->getPluginManager()->registerEvents($this->creationListener, $this);
+
+        $this->mainCommand = new MineCommand($this);
+        $this->getServer()->getCommandMap()->register("minereset", $this->mainCommand);
+
+        $this->mainCommand->registerSubCommand("about", new AboutCommand($this), ['a']);
+        $this->mainCommand->registerSubCommand("report", new ReportCommand($this), []);
+        $this->mainCommand->registerSubCommand("list", new ListCommand($this), ['l']);
+        $this->mainCommand->registerSubCommand("create", new CreateCommand($this), ['c']);
+        $this->mainCommand->registerSubCommand("set", new SetCommand($this), ['s']);
+        $this->mainCommand->registerSubCommand("destroy", new DestroyCommand($this), ['d']);
+        $this->mainCommand->registerSubCommand("reset", new ResetCommand($this), ['r']);
+        $this->mainCommand->registerSubCommand("reset-all", new ResetAllCommand($this), ['ra']);
+
+        if(!self::supportsChunkSetting()){
+            $this->getLogger()->warning("Your server does not support setting chunks without unloading them. This will cause tiles and entities to be lost when resetting mines. Upgrade to a newer pmmp to resolve this.");
+        }
+
+    }
+
+    public function onDisable(){
+        $this->mineManager->saveAll();
+    }
+
+    /**
+     * @return MineManager
+     */
+    public function getMineManager(): MineManager{
+        return $this->mineManager;
+    }
+
+    /**
+     * @return ResetProgressManager
+     */
+    public function getResetProgressManager(): ResetProgressManager{
+        return $this->resetProgressManager;
+    }
+
+    /**
+     * @return MineCommand
+     */
+    public function getMainCommand(): MineCommand{
+        return $this->mainCommand;
+    }
+
+    /**
+     * @return CreationListener
+     */
+    public function getCreationListener(): CreationListener{
+        return $this->creationListener;
+    }
+
+    /**
+     * @return RegionBlockerListener
+     */
+    public function getRegionBlockerListener(): RegionBlockerListener{
+        return $this->regionBlockerListener;
+    }
+
+    /**
+     * @return DebugDumpFactory
+     */
+    public function getDebugDumpFactory(): DebugDumpFactory{
+        return $this->debugDumpFactory;
+    }
+
+
+
+
+    public static function supportsChunkSetting(): bool {
+        return static::$supportsChunkSetting;
+    }
+
+    private static function detectChunkSetting(){
+        if(self::$supportsChunkSetting === null) {
+            $class = new \ReflectionClass(Level::class);
+            $func = $class->getMethod("setChunk");
+            $filename = $func->getFileName();
+            $start_line = $func->getStartLine() - 1;
+            $end_line = $func->getEndLine();
+            $length = $end_line - $start_line;
+
+            $source = file($filename);
+            $body = implode("", array_slice($source, $start_line, $length));
+            self::$supportsChunkSetting = strpos($body, 'removeEntity') !== false;
+        }
+    }
+}<?php
+
+namespace falkirks\minereset\util;
+
+
+use falkirks\minereset\Mine;
+use falkirks\minereset\MineReset;
+
+class DebugDumpFactory{
+    /** @var  MineReset */
+    private $api;
+
+
+    /**
+     * DebugDump constructor.
+     */
+    public function __construct(MineReset $mineReset){
+        $this->api = $mineReset;
+    }
+
+
+    public function generate(): string {
+        return implode("\n", [
+            "SERVER VERSION: " . $this->getApi()->getServer()->getPocketMineVersion(),
+            "API: " . $this->getApi()->getServer()->getApiVersion(),
+            "MCPE VERSION: " . $this->getApi()->getServer()->getVersion(),
+            "SOFTWARE: " . $this->getApi()->getServer()->getName(),
+            "MineReset Version: " . $this->getApi()->getDescription()->getVersion(),
+            "PLUGINS: " . implode(",", array_keys($this->getApi()->getServer()->getPluginManager()->getPlugins())),
+            "storage-mode: " . $this->getApi()->getMineManager()->getFlag(),
+            json_encode($this->getApi()->getMineManager()->getMines(), JSON_PRETTY_PRINT)
+        ]);
+    }
+
+
+    function __toString(){
+        return $this->generate();
+    }
+
+    /**
+     * @return MineReset
+     */
+    public function getApi(): MineReset{
+        return $this->api;
+    }
+}<?php
+namespace falkirks\minereset;
+
+
+use falkirks\minereset\store\DataStore;
+use falkirks\minereset\store\Reloadable;
+use falkirks\minereset\store\Saveable;
+use pocketmine\math\Vector3;
+use pocketmine\utils\TextFormat;
+
+class MineManager implements \ArrayAccess, \IteratorAggregate, \Countable {
+    const MEMORY_TILL_CLOSE = 0;
+    const FLUSH_ON_CHANGE = 1;
+
+    /** @var MineReset  */
+    private $api;
+    /** @var DataStore  */
+    private $store;
+    /** @var  Mine[] */
+    private $mines;
+    private $flag;
+
+    public function __construct(MineReset $api, DataStore $store, $flag = MineManager::FLUSH_ON_CHANGE){
+        $this->api = $api;
+        $this->store = $store;
+        $this->flag = $flag;
+        $this->mines = [];
+        if($this->flag < 2){
+            $this->mines = $this->loadMines();
+        }
+    }
+    /**
+     * @deprecated
+     */
+    protected function reloadStore(){
+        if($this->flag >= 2 && $this->store instanceof Reloadable){
+            $this->store->reload();
+        }
+    }
+    protected function saveStore($force = false){
+        if(($this->flag > 0 || $force) && $this->store instanceof Saveable){
+            $this->store->save();
+        }
+    }
+    protected function loadMines(): array{
+        $out = [];
+        foreach($this->store->getIterator() as $name => $data){
+            $out[$name] = $this->mineFromData($name, $data);
+        }
+        return $out;
+    }
+
+    /**
+     * WARNING
+     * This function is for internal use only.
+     */
+    public function saveAll(){
+        if($this->flag === 0){
+            $this->store->clear();
+            foreach($this->mines as $mine){
+                $this->store->add($mine->getName(), $this->mineToData($mine));
+            }
+            $this->saveStore(true);
+        }
+    }
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Whether a offset exists
+     * @link http://php.net/manual/en/arrayaccess.offsetexists.php
+     * @param mixed $offset <p>
+     * An offset to check for.
+     * </p>
+     * @return boolean true on success or false on failure.
+     * </p>
+     * <p>
+     * The return value will be casted to boolean if non-boolean was returned.
+     */
+    public function offsetExists($offset){
+        return isset($this->mines[$offset]);
+    }
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Offset to retrieve
+     * @link http://php.net/manual/en/arrayaccess.offsetget.php
+     * @param mixed $offset <p>
+     * The offset to retrieve.
+     * </p>
+     * @return mixed Can return all value types.
+     */
+    public function offsetGet($offset){
+        return $this->mines[$offset] ?? null;
+    }
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Offset to set
+     * @link http://php.net/manual/en/arrayaccess.offsetset.php
+     * @param mixed $offset <p>
+     * The offset to assign the value to.
+     * </p>
+     * @param mixed $value <p>
+     * The value to set.
+     * </p>
+     * @return void
+     */
+    public function offsetSet($offset, $value){
+        if($value instanceof Mine && $value->getName() === $offset) {
+
+            if(isset($this->mines[$offset]) && $value !== $this->mines[$offset] && $this->mines[$offset] instanceof Mine){
+                $this->mines[$offset]->destroy();
+            }
+
+            $this->mines[$offset] = $value;
+            if ($this->flag === 1) {
+                $this->store->add($offset, $this->mineToData($value));
+                $this->saveStore();
+            }
+        }
+        else{
+            throw new \RuntimeException("Invalid \$offset for mine data.");
+        }
+    }
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Offset to unset
+     * @link http://php.net/manual/en/arrayaccess.offsetunset.php
+     * @param mixed $offset <p>
+     * The offset to unset.
+     * </p>
+     * @return void
+     */
+    public function offsetUnset($offset){
+        if(isset($this->mines[$offset])) {
+            if ($this->mines[$offset] instanceof Mine) {
+                $this->mines[$offset]->destroy();
+            }
+            unset($this->mines[$offset]);
+            if ($this->flag === 1) {
+                $this->store->remove($offset);
+                $this->saveStore();
+            }
+        }
+    }
+    /**
+     * This method requires the key of the warp in order
+     * to construct a mine object
+     * @param $name
+     * @param array $array
+     * @return Mine
+     * @throws \Exception
+     */
+    protected function mineFromData($name, array $array){
+        if(count($array) === 9 || count($array) === 8) {
+            if(!$this->getApi()->getServer()->isLevelLoaded($array[7])){
+                $this->api->getLogger()->warning("A mine with the name " . TextFormat::AQUA . $name . TextFormat::RESET . " is connected to a level which is not loaded. You won't be able to use it until you load the level correctly.");
+            }
+            return new Mine($this,
+                new Vector3(min($array[0], $array[1]), min($array[2], $array[3]), min($array[4], $array[5])),
+                new Vector3(max($array[0], $array[1]), max($array[2], $array[3]), max($array[4], $array[5])),
+                $array[7],
+                $name,
+                (is_array($array[6]) ? $array[6] : []),
+                $array[8] ?? -1);
+        }
+        $this->api->getLogger()->critical("A mine with the name " . TextFormat::AQUA . $name . TextFormat::RESET . " is incomplete. It will be removed automatically when your server stops.");
+        return null;
+    }
+    /**
+     * In order to pass data to a DataStore
+     * a key is needed. Typically one should
+     * use $warp->getName()
+     * @param Mine $mine
+     * @return array
+     */
+    protected function mineToData(Mine $mine){
+        return  [
+            $mine->getPointA()->getX(),
+            $mine->getPointB()->getX(),
+            $mine->getPointA()->getY(),
+            $mine->getPointB()->getY(),
+            $mine->getPointA()->getZ(),
+            $mine->getPointB()->getZ(),
+            (count($mine->getData()) > 0 ? $mine->getData() : false),
+            $mine->getLevelName(),
+            $mine->getResetInterval()
+        ];
+    }
+    /**
+     * (PHP 5 &gt;= 5.0.0)<br/>
+     * Retrieve an external iterator
+     * @link http://php.net/manual/en/iteratoraggregate.getiterator.php
+     * @return \Traversable An instance of an object implementing <b>Iterator</b> or
+     * <b>Traversable</b>
+     */
+    public function getIterator(){
+        return new \ArrayIterator($this->mines);
+    }
+
+    public function count(){
+        return count($this->mines);
+    }
+
+
+    /**
+     * Returns the current storage-mode
+     * #####
+     *  MEMORY_TILL_CLOSE = 0
+     * Mines are loaded into memory when the server starts and are
+     * held there until the server closes. When the server closes
+     * they are converted back into YAML. This new YAML will
+     * replace mines.yml, this means that changes are lost and
+     * warps which fail to load are discarded.
+     *
+     *
+     * FLUSH_ON_CHANGE = 1
+     * Mines are loaded into memory when the server starts. Whenever a
+     * mine is updated, it will be updated in the mines.yml. When the
+     * server closes, the mines file is NOT overwritten.
+     *
+     * NO_MEMORY_STORE = 2
+     * THIS IS NOT SUPPORTED
+     * ####
+     * @return int
+     */
+    public function getFlag(): int{
+        return $this->flag;
+    }
+    /**
+     * returns the current data store
+     * @return DataStore
+     */
+    public function getStore(): DataStore{
+        return $this->store;
+    }
+    /**
+     * Injects a new DataStore for warps
+     * ! This will inject your code into MineReset, potentially breaking!
+     * @param DataStore $store
+     */
+    public function setStore(DataStore $store){
+        $this->saveAll();
+        $this->store = $store;
+        $this->mines = $this->loadMines();
+    }
+
+    /**
+     * @return MineReset
+     */
+    public function getApi(): MineReset{
+        return $this->api;
+    }
+
+    /**
+     * @return Mine[]
+     */
+    public function getMines(): array{
+        return $this->mines;
+    }
+}<?php
+namespace falkirks\minereset\store;
+
+use pocketmine\utils\Config;
+
+/**
+ * Class YAMLStore
+ * @package falkirks\minereset\store
+ */
+class YAMLStore extends AbstractStore implements Saveable, Reloadable{
+    /** @var Config  */
+    private $config;
+
+    /**
+     * YAMLStore constructor.
+     * @param Config $config
+     */
+    public function __construct(Config $config){
+        $this->config = $config;
+    }
+
+    /**
+     * Adds a new mine and returns the old one
+     * @param $name
+     * @param $warp
+     * @return bool|mixed
+     */
+    public function add($name, $mine){
+        $past = $this->config->get($name, null);
+        $this->config->set($name, $mine);
+        $this->config->save();
+        return $past;
+    }
+
+    /**
+     * Gets mine with $name
+     * @param $name
+     * @return bool|mixed
+     */
+    public function get($name){
+        return $this->config->get($name, null);
+    }
+
+    /**
+     * Removes a mine with $name and returns it
+     * @param $name
+     * @return bool|mixed
+     */
+    public function remove($name){
+        $past = $this->config->get($name, null);
+        $this->config->remove($name);
+        $this->config->save();
+        return $past;
+    }
+
+    /**
+     * Clears all mines
+     */
+    public function clear(){
+        $this->config->setAll([]);
+        $this->config->save();
+    }
+
+    /**
+     *  Reloads the mines from YAML
+     */
+    public function reload(){
+        $this->config->reload();
+    }
+    /**
+     * Returns something which can be used to iterate
+     * over the store.
+     * @return mixed
+     */
+    public function getIterator(){
+        return $this->config->getAll();
+    }
+
+    /**
+     * Saves mines to file
+     */
+    public function save(){
+        $this->config->save();
+    }
+}<?php
+namespace falkirks\minereset\store;
+
+/**
+ * This is extracted from SimpleWarp and redistributed under the same license
+ * as Mine Reset.
+ *
+ * Interface AbstractStore
+ * @package falkirks\minereset\store
+ */
+abstract class AbstractStore implements DataStore{
+    public function addAll($mines){
+        foreach($mines as $name => $mine){
+            $this->add($name, $mine);
+        }
+    }
+    public function removeAll($mines){
+        foreach($mines as $mine){
+            $this->remove($mine);
+        }
+    }
+    public function exists($name): bool{
+        return $this->get($name) !== null;
+    }
+}<?php
+namespace falkirks\minereset\store;
+
+/**
+ * This interface deals with the storage of arbitrary mine
+ * data in a key-value store.
+ *
+ * This is extracted from SimpleWarp and redistributed under the same license
+ * as Mine Reset.
+ *
+ * Interface DataStore
+ * @package falkirks\minereset\store
+ */
+interface DataStore {
+    public function addAll($mines);
+    public function removeAll($mines);
+    public function exists($name) : bool ;
+    /**
+     * This method takes a $name string and a $warp array and
+     * returns the previous value that occupied $name or null.
+     * @param $name
+     * @param $mine
+     * @return mixed
+     */
+    public function add($name, $mine);
+    /**
+     * @param $name
+     * @return mixed
+     */
+    public function get($name);
+    public function remove($name);
+    public function clear();
+    /**
+     * Returns something which can be used to iterate
+     * over the store.
+     * @return mixed
+     */
+    public function getIterator();
+}<?php
+/**
+ * Created by PhpStorm.
+ * User: noahheyl
+ * Date: 2017-04-15
+ * Time: 8:44 AM
+ */
+
+namespace falkirks\minereset\store;
+
+
+interface Saveable{
+    public function save();
+}<?php
+namespace falkirks\minereset\store;
+
+
+interface Reloadable{
+    public function reload();
+}<?php
+namespace falkirks\minereset;
+
+use falkirks\minereset\task\ResetTask;
+use falkirks\minereset\util\BlockStringParser;
+use pocketmine\level\format\Chunk;
+use pocketmine\level\Level;
+use pocketmine\level\Position;
+use pocketmine\math\Vector3;
+use pocketmine\scheduler\Task;
+
+/**
+ * Class Mine
+ *
+ * Programmer note: Mine objects have no state. They can be generated arbitrarily from serialized data.
+ *
+ * @package falkirks\minereset\mine
+ */
+class Mine extends Task implements \JsonSerializable {
+    private $pointA;
+    private $pointB;
+    private $level;
+    private $data;
+    private $name;
+    private $isResetting;
+
+    private $resetInterval;
+
+    private $api;
+
+
+    /**
+     * Mine constructor.
+     * @param MineManager $api
+     * @param Vector3 $pointA
+     * @param Vector3 $pointB
+     * @param string $level
+     * @param string $name
+     * @param array $data
+     * @param int $resetInterval
+     */
+    public function __construct(MineManager $api, Vector3 $pointA, Vector3 $pointB, $level, string $name, array $data = [], int $resetInterval = -1){
+        $this->pointA = $pointA;
+        $this->pointB = $pointB;
+        $this->level = $level;
+        $this->data = $data;
+        $this->name = $name;
+        $this->resetInterval = $resetInterval;
+        $this->api = $api;
+
+        $this->isResetting = false;
+
+
+        if($this->isValid()) {
+            $this->register();
+        }
+        else{
+            $api->getApi()->getLogger()->warning("MineReset has detected corruption of the mines.yml file in mine with name {$this->name}, MineReset will not reset this mine.");
+        }
+
+    }
+
+    public function isValid() : bool {
+        foreach ($this->data as $id => $percent){
+            if(!BlockStringParser::isValid($id) || !is_numeric($percent)){
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * INTERNAL USE ONLY
+     */
+    public function register(){
+        if($this->getHandler() === null && $this->resetInterval > 0){
+            $this->getApi()->getApi()->getScheduler()->scheduleRepeatingTask($this, 20 * $this->resetInterval);
+        }
+    }
+
+    /**
+     * INTERNAL USE ONLY
+     */
+    public function destroy(){
+        if($this->getHandler() !== null) {
+            $this->getApi()->getApi()->getScheduler()->cancelTask($this->getTaskId());
+        }
+    }
+
+    public function onRun(int $currentTick){
+        $this->reset();
+    }
+
+    /**
+     * @return Vector3
+     */
+    public function getPointA(): Vector3{
+        return $this->pointA;
+    }
+
+    /**
+     * @return Vector3
+     */
+    public function getPointB(): Vector3{
+        return $this->pointB;
+    }
+
+    public function isPointInside(Position $position): bool{
+        if($this->getLevel() !== null && $position->getLevel()->getId() !== $this->getLevel()->getId()){
+            return false;
+        }
+
+        return $position->getX() >= $this->getPointA()->getX()
+            && $position->getX() <= $this->getPointB()->getX()
+            && $position->getY() >= $this->getPointA()->getY()
+            && $position->getY() <= $this->getPointB()->getY()
+            && $position->getZ() >= $this->getPointA()->getZ()
+            && $position->getZ() <= $this->getPointB()->getZ();
+    }
+
+    /**
+     * @return Level | null
+     */
+    public function getLevel(){
+        return $this->api->getApi()->getServer()->getLevelByName($this->level);
+    }
+
+    /**
+     * @return string
+     */
+    public function getLevelName(): string {
+        return $this->level;
+    }
+
+    /**
+     * @return array
+     */
+    public function getData(): array{
+        return $this->data;
+    }
+
+    /**
+     * @param array $data
+     */
+    public function setData(array $data){
+        $this->data = $data;
+        $this->getApi()->offsetSet($this->getName(), $this);
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string{
+        return $this->name;
+    }
+
+    /**
+     * @return MineManager
+     */
+    public function getApi(): MineManager{
+        return $this->api;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isResetting(){
+        return $this->isResetting;
+    }
+
+    /**
+     * @param bool $force NOT TESTED
+     * @return bool
+     */
+    public function reset($force = false){
+        if((!$this->isResetting() || $force) && $this->getLevel() !== null && $this->isValid()){
+            $this->isResetting = true;
+
+            $chunks = [];
+            $chunkClass = Chunk::class;
+            for ($x = $this->getPointA()->getX(); $x-16 <= $this->getPointB()->getX(); $x += 16){
+                for ($z = $this->getPointA()->getZ(); $z-16 <= $this->getPointB()->getZ(); $z += 16) {
+                    $chunk = $this->getLevel()->getChunk($x >> 4, $z >> 4, true);
+
+                    $chunkClass = get_class($chunk);
+                    $chunks[Level::chunkHash($x >> 4, $z >> 4)] = $chunk->fastSerialize();
+                }
+            }
+
+            $resetTask = new ResetTask($this->getName(), $chunks, $this->getPointA(), $this->getPointB(), $this->data, $this->getLevel()->getId(), $chunkClass);
+            $this->getApi()->getApi()->getServer()->getAsyncPool()->submitTask($resetTask);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @return int
+     */
+    public function getResetInterval(): int{
+        return $this->resetInterval;
+    }
+
+    /**
+     * @param int $resetInterval
+     */
+    public function setResetInterval(int $resetInterval){
+        $this->resetInterval = $resetInterval;
+        $this->destroy();
+        $this->register();
+    }
+
+    public function doneReset(){
+        $this->isResetting = false;
+    }
+
+    public function __toString(){
+        return $this->name;
+    }
+
+    // This is only used for debugging
+    public function jsonSerialize(){
+        return [
+            'name' => $this->name,
+            'pointA' => [$this->pointA->getX(), $this->pointA->getY(), $this->pointA->getZ()],
+            'pointB' => [$this->pointB->getX(), $this->pointB->getY(), $this->pointB->getZ()],
+            'level' => $this->level,
+            'isLevelLoaded' => $this->api->getApi()->getServer()->getLevelByName($this->level) !== null,
+            'data' => $this->data,
+            'isResetting' => $this->isResetting,
+            'resetInterval' => $this->resetInterval
+        ];
+    }
+
+
+}
+<?php
+/**
+ * Created by PhpStorm.
+ * User: noahheyl
+ * Date: 2018-02-01
+ * Time: 10:56 AM
+ */
+
+namespace falkirks\minereset\util;
+
+
+use falkirks\minereset\exception\InvalidBlockStringException;
+use pocketmine\block\BlockIds;
+
+class BlockStringParser{
+    private static $blockMap;
+
+    private static function ensureMap(){
+        if(!is_array(self::$blockMap)) {
+            self::$blockMap = (new \ReflectionClass(BlockIds::class))->getConstants();
+        }
+    }
+
+
+    public static function isValid(string $str): bool {
+        self::ensureMap();
+        if(is_numeric($str) || isset(self::$blockMap[strtoupper($str)])){
+            return true;
+        }
+
+        $arr = explode(":", $str);
+        if(count($arr) === 2 && is_numeric($arr[1])){
+            return is_numeric($arr[0]) || isset(self::$blockMap[strtoupper($arr[0])]);
+        }
+
+        return false;
+
+    }
+
+    /**
+     * @param string $str
+     * @return array
+     * @throws InvalidBlockStringException
+     */
+    public static function parse(string $str): array{
+        self::ensureMap();
+
+        if (is_numeric($str)) {
+            return [$str, 0];
+        }
+        elseif(isset(self::$blockMap[strtoupper($str)])){
+            return [self::$blockMap[strtoupper($str)], 0];
+        }
+
+
+        $arr = explode(":", $str);
+        if (count($arr) === 2 && is_numeric($arr[1])) {
+            if(is_numeric($arr[0])){
+                return [$arr[0], $arr[1]];
+            }
+            elseif(isset(self::$blockMap[strtoupper($arr[0])])){
+                return [self::$blockMap[strtoupper($arr[0])], $arr[1]];
+            }
+        }
+
+        throw new InvalidBlockStringException();
+    }
+
+}<?php
+namespace falkirks\minereset;
+
+
+use pocketmine\command\CommandSender;
+
+class ResetProgressManager{
+    /** @var  MineReset */
+    private $api;
+
+    /** @var  array */
+    private $subscriptions;
+
+    /**
+     * ResetProgressManager constructor.
+     * @param MineReset $api
+     */
+    public function __construct(MineReset $api){
+        $this->api = $api;
+        $this->subscriptions = [];
+    }
+
+
+    public function notifyProgress(string $progress, string $mineName){
+        if(isset($this->subscriptions[$mineName])){
+            foreach ($this->subscriptions[$mineName] as $sender){
+                $sender->sendMessage("RESET {$mineName}: {$progress}");
+            }
+        }
+    }
+
+    public function notifyComplete(string $mineName){
+        if(isset($this->getApi()->getMineManager()[$mineName])){
+            $this->getApi()->getMineManager()[$mineName]->doneReset();
+        }
+        if(isset($this->subscriptions[$mineName])){
+            foreach ($this->subscriptions[$mineName] as $sender){
+                $sender->sendMessage("Reset of {$mineName} has completed.");
+            }
+            unset($this->subscriptions[$mineName]);
+        }
+    }
+
+    public function addObserver(string $mineName, CommandSender $sender){
+        if(!isset($this->subscriptions[$mineName])){
+            $this->subscriptions[$mineName] = [];
+        }
+        $this->subscriptions[$mineName][] = $sender;
+    }
+
+    /**
+     * @return MineReset
+     */
+    public function getApi(): MineReset{
+        return $this->api;
+    }
+
+
+}<?php
+namespace falkirks\minereset\listener;
+
+
+use falkirks\minereset\Mine;
+use falkirks\minereset\MineReset;
+use pocketmine\event\block\BlockBreakEvent;
+use pocketmine\event\block\BlockPlaceEvent;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\level\Position;
+use pocketmine\utils\TextFormat;
+
+class RegionBlockerListener implements Listener {
+    /** @var  MineReset */
+    private $api;
+
+    /**
+     * RegionBlockerListener constructor.
+     * @param MineReset $api
+     */
+    public function __construct(MineReset $api){
+        $this->api = $api;
+    }
+
+
+    public function clearMine(string $mineName){
+        /** @var Mine $mine */
+        $mine = $this->getApi()->getMineManager()[$mineName];
+        if($mine !== null){
+            foreach ($this->getApi()->getServer()->getOnlinePlayers() as $player){
+                if($mine->isPointInside($player->getPosition())){
+                    $player->teleport($player->getLevel()->getSafeSpawn($player->getPosition()));
+                    $player->sendMessage("You have teleported to escape a resetting mine.");
+                }
+            }
+        }
+    }
+
+    /**
+     * @priority HIGH
+     *
+     * @param BlockPlaceEvent $event
+     */
+    public function onBlockPlace(BlockPlaceEvent $event){
+
+        $mine = $this->getResettingMineAtPosition($event->getBlock());
+        if($mine != null){
+            $event->getPlayer()->sendMessage(TextFormat::RED . "A mine is currently resetting in this area. You may not place blocks." . TextFormat::RESET);
+            $event->setCancelled();
+        }
+    }
+
+    /**
+     * @priority HIGH
+     *
+     * @param BlockBreakEvent $event
+     */
+    public function onBlockDestroy(BlockBreakEvent $event){
+
+        $mine = $this->getResettingMineAtPosition($event->getBlock());
+        if($mine != null){
+            $event->getPlayer()->sendMessage(TextFormat::RED . "A mine is currently resetting in this area. You may not break blocks." . TextFormat::RESET);
+            $event->setCancelled();
+        }
+    }
+
+    private function getResettingMineAtPosition(Position $position){
+        foreach ($this->getApi()->getMineManager() as $mine) {
+            if($mine->isResetting() && $mine->isPointInside($position)){
+                return $mine;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return MineReset
+     */
+    public function getApi(): MineReset{
+        return $this->api;
+    }
+
+
+}<?php
+namespace falkirks\minereset\listener;
+
+
+use falkirks\minereset\MineReset;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\Player;
+use pocketmine\utils\TextFormat;
+
+class CreationListener implements Listener {
+    /** @var  MineReset */
+    private $api;
+
+    /** @var  MineCreationSession[] */
+    private $sessions;
+
+
+    /**
+     * CreationListener constructor.
+     * @param MineReset $api
+     */
+    public function __construct(MineReset $api){
+        $this->api = $api;
+        $this->sessions = [];
+    }
+
+    /**
+     * @priority LOW
+     * @ignoreCancelled true
+     *
+     * @param PlayerInteractEvent $event
+     */
+    public function onBlockTap(PlayerInteractEvent $event){
+        if($event->getAction() !== PlayerInteractEvent::RIGHT_CLICK_BLOCK){
+            return;
+        }
+
+        $session = $this->getPlayerSession($event->getPlayer());
+
+        if($session !== null){
+            if($session->getLevel() === null || $session->getLevel()->getId() === $event->getPlayer()->getLevel()->getId()) {
+                $session->setNextPoint($event->getBlock());
+                $session->setLevel($event->getPlayer()->getPosition()->getLevel());
+
+                if($session->canGenerate()){
+                    $mine = $session->generate($this->getApi()->getMineManager());
+                    $event->getPlayer()->sendMessage("You have created a mine called " . $mine->getName() . ".");
+                    $event->getPlayer()->sendMessage("You can set it using /mine set " . $mine->getName() . " <data>");
+                    unset($this->sessions[array_search($session, $this->sessions)]);
+                }
+                else{
+                    $event->getPlayer()->sendMessage("You have set position A. Tap another block to set position B.");
+                }
+            }
+            else{
+                $event->getPlayer()->sendMessage(TextFormat::RED . "Failed to create mine due to level switch". TextFormat::RESET);
+                unset($this->sessions[array_search($session, $this->sessions)]);
+            }
+        }
+    }
+
+    /**
+     * @return MineReset
+     */
+    public function getApi(): MineReset{
+        return $this->api;
+    }
+
+    public function playerHasSession(Player $player): bool {
+        foreach ($this->sessions as $session){
+            if($session->getPlayer()->getName() === $player->getName()){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function getPlayerSession(Player $player){
+        foreach ($this->sessions as $session){
+            if($session->getPlayer()->getName() === $player->getName()){
+                return $session;
+            }
+        }
+        return null;
+    }
+
+
+    public function addSession(MineCreationSession $session): bool {
+        if(!$this->playerHasSession($session->getPlayer())) {
+            $this->sessions[] = $session;
+            return true;
+        }
+        return false;
+    }
+
+
+}<?php
+
+namespace falkirks\minereset\listener;
+
+
+use falkirks\minereset\Mine;
+use falkirks\minereset\MineManager;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
+class MineCreationSession{
+    /** @var  string */
+    private $name;
+    /** @var  Player */
+    private $player;
+    /** @var Vector3 */
+    private $pointA;
+    /** @var Vector3 */
+    private $pointB;
+    /** @var  Level */
+    private $level;
+
+    /**
+     * MineCreationSession constructor.
+     * @param string $name
+     * @param Player $player
+     */
+    public function __construct(string $name, Player $player){
+        $this->name = $name;
+        $this->player = $player;
+        $this->pointA = null;
+        $this->pointB = null;
+        $this->level = null;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string{
+        return $this->name;
+    }
+
+    /**
+     * @return Player
+     */
+    public function getPlayer(): Player{
+        return $this->player;
+    }
+
+    /**
+     * @param Player $player
+     */
+    public function setPlayer(Player $player){
+        $this->player = $player;
+    }
+
+    /**
+     * @return Vector3 | null
+     */
+    public function getPointA(){
+        return $this->pointA;
+    }
+
+    /**
+     * @param Vector3 $pointA
+     */
+    public function setPointA(Vector3 $pointA){
+        $this->pointA = $pointA;
+    }
+
+    /**
+     * @return Vector3 | null
+     */
+    public function getPointB(){
+        return $this->pointB;
+    }
+
+    /**
+     * @param Vector3 $pointB
+     */
+    public function setPointB(Vector3 $pointB){
+        $this->pointB = $pointB;
+    }
+
+    /**
+     * @return Level | null
+     */
+    public function getLevel(){
+        return $this->level;
+    }
+
+    /**
+     * @param Level $level
+     */
+    public function setLevel(Level $level){
+        $this->level = $level;
+    }
+
+    public function setNextPoint(Vector3 $point){
+        if($this->pointA === null){
+            $this->setPointA($point);
+        }
+        else if($this->pointB === null){
+            $this->setPointB($point);
+        }
+    }
+
+    public function canGenerate() : bool {
+        return $this->pointA !== null && $this->pointB !== null && $this->level !== null;
+    }
+
+    public function generate(MineManager $owner): Mine{
+        if($this->canGenerate()){
+            $mine = new Mine($owner,
+                new Vector3(min($this->pointA->getFloorX(), $this->pointB->getFloorX()), min($this->pointA->getFloorY(), $this->pointB->getFloorY()), min($this->pointA->getFloorZ(), $this->pointB->getFloorZ())),
+                new Vector3(max($this->pointA->getFloorX(), $this->pointB->getFloorX()), max($this->pointA->getFloorY(), $this->pointB->getFloorY()), max($this->pointA->getFloorZ(), $this->pointB->getFloorZ())),
+                $this->level->getName(),
+                $this->name);
+            $owner[$this->name] = $mine;
+            return $mine;
+        }
+        else{
+            throw new \InvalidStateException();
+        }
+    }
+
+}<?php
+
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\MineReset;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+class MineCommand extends Command implements PluginIdentifiableCommand {
+    /** @var MineReset  */
+    protected $api;
+    /** @var  SubCommand[] */
+    protected $subCommands;
+    public function __construct(MineReset $api){
+        parent::__construct("mine", "Mine reset command", "/mine <create|set|list|reset|reset-all|destroy|report> <name> [parameters]");
+        $this->api = $api;
+        $this->subCommands = [];
+    }
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param string[] $args
+     *
+     * @return mixed
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args){
+        if(count($args) > 0 && array_key_exists($args[0], $this->subCommands)){
+            return $this->subCommands[array_shift($args)]->execute($sender, $commandLabel, $args);
+        }
+        else{
+            $sender->sendMessage($this->getUsage());
+            return null;
+        }
+    }
+
+    /**
+     * @return \pocketmine\plugin\Plugin
+     */
+    public function getPlugin(): Plugin{
+        return $this->api;
+    }
+
+    public function registerSubCommand(string $name, SubCommand $command, $aliases = []){
+        $this->subCommands[$name] = $command;
+
+        foreach ($aliases as $alias){
+            if(!isset($this->subCommands[$alias])){
+                $this->registerSubCommand($alias, $command);
+            }
+        }
+    }
+}
+<?php
+
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\task\AboutPullTask;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+class AboutCommand extends SubCommand{
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.about")) {
+            $this->getApi()->getServer()->getAsyncPool()->submitTask(new AboutPullTask($sender));
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\MineReset;
+use pocketmine\command\CommandSender;
+
+abstract class SubCommand{
+    /** @var  MineReset */
+    private $api;
+
+    /**
+     * SubCommand constructor.
+     * @param MineReset $api
+     */
+    public function __construct(MineReset $api){
+        $this->api = $api;
+    }
+
+
+    abstract public function execute(CommandSender $sender, $commandLabel, array $args);
+
+    /**
+     * @return MineReset
+     */
+    public function getApi(): MineReset{
+        return $this->api;
+    }
+}<?php
+
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\task\AboutPullTask;
+use pocketmine\command\CommandSender;
+use pocketmine\command\ConsoleCommandSender;
+use pocketmine\utils\TextFormat;
+use pocketmine\utils\Utils;
+
+class ReportCommand extends SubCommand{
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.report")) {
+            $data = $this->getApi()->getDebugDumpFactory()->generate();
+            if ($sender instanceof ConsoleCommandSender) {
+                $issueContent = "\n\n(Explain your problem here)\n\n```\n$data\n```";
+                $url = "https://github.com/Falkirks/MineReset/issues/new" . (count($args) > 0 ? "?title=" . urlencode(implode(" ", $args)) . "\&" : "?") . "body=" . urlencode($issueContent);
+                switch (Utils::getOS()) {
+                    case 'win':
+                        `start $url`;
+                        break;
+                    case 'mac':
+                        `open $url`;
+                        break;
+                    case 'linux':
+                        `xdg-open $url`;
+                        break;
+                    default:
+                        $sender->sendMessage("Copy and paste the following URL into your browser to start a report.");
+                        $sender->sendMessage("------------------");
+                        $sender->sendMessage($url);
+                        $sender->sendMessage("------------------");
+                        break;
+                }
+            }
+            $sender->sendMessage("--- MineReset Data ---");
+            $sender->sendMessage($data);
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\Mine;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+class ListCommand extends SubCommand{
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.list")) {
+            $sender->sendMessage("---- Mines ----");
+            foreach ($this->getApi()->getMineManager() as $mine) {
+                if ($mine instanceof Mine) {
+                    if(!$mine->isValid()){
+                        $sender->sendMessage("* " . TextFormat::RED . $mine . TextFormat::RESET);
+                    }
+                    else if($mine->isResetting()){
+                        $sender->sendMessage("* " . TextFormat::BLUE . $mine . TextFormat::RESET);
+                    }
+                    else {
+                        $sender->sendMessage("* " . $mine);
+                    }
+                }
+            }
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\listener\MineCreationSession;
+use falkirks\minereset\Mine;
+use pocketmine\command\CommandSender;
+use pocketmine\Player;
+use pocketmine\utils\TextFormat;
+
+class CreateCommand extends SubCommand{
+
+
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.create")) {
+            if ($sender instanceof Player) {
+                if (isset($args[0])) {
+                    if (!$this->getApi()->getCreationListener()->playerHasSession($sender)) {
+                        if (!isset($this->getApi()->getMineManager()[$args[0]])) {
+                            $this->getApi()->getCreationListener()->addSession(new MineCreationSession($args[0], $sender));
+                            $sender->sendMessage("Tap a block to set position A.");
+                        } else {
+                            $sender->sendMessage("That mine already exists. You must run \"/mine destroy {$args[0]}\" before creating a new one.");
+                        }
+                    } else {
+                        $sender->sendMessage("Hold up! You are already in the process of creating a mine. You need to finish that first.");
+                    }
+
+                } else {
+                    $sender->sendMessage("Usage: /mine create <name>");
+                }
+            } else {
+                $sender->sendMessage(TextFormat::RED . "This command can only be run in-game." . TextFormat::RESET);
+            }
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\Mine;
+use falkirks\minereset\util\BlockStringParser;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+class SetCommand extends SubCommand{
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.set")) {
+            if (isset($args[0])) {
+                if (isset($this->getApi()->getMineManager()[$args[0]])) {
+                    if (isset($args[2])) {
+                        $sets = array_slice($args, 1);
+                        $save = [];
+
+                        if(array_reduce($sets, function ($carry, $curr){ return $carry && BlockStringParser::isValid($curr); }, true)) { //FIXME Allows bad ordering by treating every input as block string
+                            if (count($sets) % 2 === 0) {
+                                $total = 0;
+                                foreach ($sets as $key => $item) {
+                                    if (strpos($item, "%")) {
+                                        $sender->sendMessage(TextFormat::RED . "Your format string looks incorrect." . TextFormat::RESET);
+                                        return;
+                                    }
+                                    if ($key & 1) {
+                                        $total += $item;
+                                        if (isset($save[$sets[$key - 1]])) {
+                                            $save[$sets[$key - 1]] += $item;
+                                        } else {
+                                            $save[$sets[$key - 1]] = $item;
+                                        }
+                                    }
+                                }
+                                if ($total === 100) {
+                                    $this->getApi()->getMineManager()[$args[0]]->setData($save);
+                                    $sender->sendMessage(TextFormat::GREEN . "Mine has been setted. Use /mine reset {$args[0]} to see your changes.");
+                                } else {
+                                    $sender->sendMessage(TextFormat::YELLOW . "The percents on your mine must add to 100, but they add to {$total}." . TextFormat::RESET);
+                                }
+                            } else {
+                                $sender->sendMessage(TextFormat::RED . "Your format string looks incorrect." . TextFormat::RESET);
+                            }
+                        }
+                        else {
+                            $sender->sendMessage(TextFormat::RED . "Part of your format is not a number." . TextFormat::RESET);
+                        }
+                    }
+                    else {
+                        $sender->sendMessage("You must provide at least one block with a chance value.");
+                    }
+                }
+                else {
+                    $sender->sendMessage("{$args[0]} is not a valid mine.");
+                }
+            }
+            else {
+                $sender->sendMessage("Usage: /mine set <name> <data>");
+            }
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\Mine;
+use falkirks\minereset\MineReset;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+class DestroyCommand extends SubCommand{
+
+    const DESTROY_STRINGS = [
+        "a",
+        "b",
+        "c",
+        "5",
+        "7",
+        "-f",
+        "DEATH",
+        "yes",
+        "15",
+        "y"
+    ];
+
+    private $offset;
+    private $senders;
+
+    public function __construct(MineReset $mineReset){
+        parent::__construct($mineReset);
+        $this->offset = 0;
+        $this->senders = [];
+    }
+
+
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.destroy")) {
+            if (isset($args[0])) {
+                if (isset($this->getApi()->getMineManager()[$args[0]])) {
+                    if (isset($args[1]) && isset($this->senders[$sender->getName()]) && $this->senders[$sender->getName()] === $args[1]) {
+                        unset($this->getApi()->getMineManager()[$args[0]]);
+                        unset($this->senders[$sender->getName()]);
+                        $sender->sendMessage("{$args[0]} has been destroyed.");
+                    } else {
+                        $str = DestroyCommand::DESTROY_STRINGS[$this->offset];
+                        $sender->sendMessage("Run: " . TextFormat::AQUA . "/mine destroy {$args[0]} $str" . TextFormat::RESET);
+                        $sender->sendMessage("To destroy mines faster, you can edit the config file directly.");
+                        $this->senders[$sender->getName()] = $str;
+
+                        if ($this->offset === count(DestroyCommand::DESTROY_STRINGS) - 1) {
+                            $this->offset = -1;
+                        }
+
+                        $this->offset++;
+                    }
+                } else {
+                    $sender->sendMessage("{$args[0]} is not a valid mine.");
+                }
+            } else {
+                $sender->sendMessage("Usage: /mine destroy <name>");
+            }
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\Mine;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+class ResetCommand extends SubCommand{
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.reset")) {
+            if (isset($args[0])) {
+                if (isset($this->getApi()->getMineManager()[$args[0]])) {
+                    if ($this->getApi()->getMineManager()[$args[0]]->reset()) {
+                        $sender->sendMessage("Queued reset for {$args[0]}.");
+                        $this->getApi()->getResetProgressManager()->addObserver($args[0], $sender);
+                    }
+                    else {
+                        $sender->sendMessage("Could not queue reset for {$args[0]}.");
+                    }
+                }
+                else {
+                    $sender->sendMessage("{$args[0]} is not a valid mine.");
+                }
+            }
+            else {
+                $sender->sendMessage("Usage: /mine reset <name>");
+            }
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\command;
+
+
+use falkirks\minereset\Mine;
+use pocketmine\command\CommandSender;
+use pocketmine\utils\TextFormat;
+
+class ResetAllCommand extends SubCommand{
+    public function execute(CommandSender $sender, $commandLabel, array $args){
+        if($sender->hasPermission("minereset.command.resetall")) {
+            $success = 0;
+            foreach ($this->getApi()->getMineManager() as $mine) {
+                if ($mine instanceof Mine) {
+                    if ($mine->reset()) { // Only reset if valid
+                        $success++;
+                        $this->getApi()->getResetProgressManager()->addObserver($mine->getName(), $sender);
+                    }
+                }
+            }
+            $count = count($this->getApi()->getMineManager());
+            $sender->sendMessage("Queued reset for {$success}/{$count} mines.");
+        }
+        else{
+            $sender->sendMessage(TextFormat::RED . "You do not have permission to run this command." . TextFormat::RESET);
+        }
+    }
+}<?php
+namespace falkirks\minereset\task;
+
+use falkirks\minereset\MineReset;
+use falkirks\minereset\util\BlockStringParser;
+use pocketmine\block\Block;
+use pocketmine\level\format\Chunk;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
+use pocketmine\scheduler\AsyncTask;
+use pocketmine\Server;
+
+
+class ResetTask extends AsyncTask{
+    /** @var  string */
+    private $name;
+    /** @var string $chunks */
+    private $chunks;
+    /** @var Vector3 $a */
+    private $a;
+    /** @var Vector3 $b */
+    private $b;
+    /** @var string $ratioData */
+    private $ratioData;
+    /** @var int $levelId */
+    private $levelId;
+    /** @var Chunk $chunkClass */
+    private $chunkClass;
+
+    private $parserClass;
+
+    public function __construct(string $name, array $chunks, Vector3 $a, Vector3 $b, array $data, $levelId, $chunkClass){
+        $this->name = $name;
+        $this->chunks = serialize($chunks);
+        $this->a = $a;
+        $this->b = $b;
+        $this->ratioData = serialize($data);
+        $this->levelId = $levelId;
+        $this->chunkClass = $chunkClass;
+        $this->parserClass = BlockStringParser::class;
+    }
+    /**
+     * Actions to execute when run
+     *
+     * @return void
+     */
+    public function onRun(){
+        $chunkClass = $this->chunkClass;
+        /** @var Chunk[] $chunks */
+        $chunks = unserialize($this->chunks);
+        foreach($chunks as $hash => $binary){
+            $chunks[$hash] = $chunkClass::fastDeserialize($binary);
+        }
+        $sum = [];
+        $id = array_map([$this->parserClass, "parse"], array_keys(unserialize($this->ratioData)));
+
+        $m = array_values(unserialize($this->ratioData));
+        $sum[0] = $m[0];
+        for ($l = 1, $mCount = count($m); $l < $mCount; $l++)
+            $sum[$l] = $sum[$l - 1] + $m[$l];
+
+        $sumCount = count($sum);
+
+        //Get these as local variables so they don't keep getting serialized/unserialized every single access
+        $posA = $this->a;
+        $posB = $this->b;
+
+        $totalBlocks = ($posB->x - $posA->x + 1)*($posB->y - $posA->y + 1)*($posB->z - $posA->z + 1);
+        $interval = $totalBlocks / 8; //TODO determine the interval programmatically
+        $lastUpdate = 0;
+        $currentBlocks = 0;
+
+        $currentChunkX = $posA->x >> 4;
+        $currentChunkZ = $posA->z >> 4;
+
+        $currentChunkY = $posA->y >> 4;
+
+        $currentChunk = null;
+        $currentSubChunk = null;
+
+        for ($x = $posA->getX(), $x2 = $posB->getX(); $x <= $x2; $x++) {
+            $chunkX = $x >> 4;
+            for ($z = $posA->getZ(), $z2 = $posB->getZ(); $z <= $z2; $z++) {
+                $chunkZ = $z >> 4;
+                if($currentChunk === null or $chunkX !== $currentChunkX or $chunkZ !== $currentChunkZ){
+                    $currentChunkX = $chunkX;
+                    $currentChunkZ = $chunkZ;
+                    $currentSubChunk = null;
+
+                    $hash = Level::chunkHash($chunkX, $chunkZ);
+                    $currentChunk = $chunks[$hash];
+                    if($currentChunk === null){
+                        continue;
+                    }
+                }
+
+                for ($y = $posA->getY(), $y2 = $posB->getY(); $y <= $y2; $y++) {
+                    $chunkY = $y >> 4;
+
+                    if($currentSubChunk === null or $chunkY !== $currentChunkY){
+                        $currentChunkY = $chunkY;
+
+                        $currentSubChunk = $currentChunk->getSubChunk($chunkY, true);
+                        if($currentSubChunk === null){
+                            continue;
+                        }
+                    }
+
+                    $a = rand(0, end($sum));
+                    for ($l = 0; $l < $sumCount; $l++) {
+                        if ($a <= $sum[$l]) {
+                            $currentSubChunk->setBlock($x & 0x0f, $y & 0x0f, $z & 0x0f, $id[$l][0] & 0xff, $id[$l][1] & 0xff);
+                            $currentBlocks++;
+                            if($lastUpdate + $interval <= $currentBlocks){
+                                if(method_exists($this, 'publishProgress')) {
+                                    $this->publishProgress(round(($currentBlocks / $totalBlocks) * 100) . "%");
+                                }
+                                $lastUpdate = $currentBlocks;
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        $this->setResult($chunks);
+    }
+    /**
+     * @param Server $server
+     */
+    public function onCompletion(Server $server){
+        $chunks = $this->getResult();
+        $plugin = $server->getPluginManager()->getPlugin("MineReset");
+        if($plugin instanceof MineReset and $plugin->isEnabled()) {
+            $level = $server->getLevel($this->levelId);
+            if ($level instanceof Level) {
+                foreach ($chunks as $hash => $chunk) {
+                    Level::getXZ($hash, $x, $z);
+                    $level->setChunk($x, $z, $chunk, !MineReset::supportsChunkSetting());
+
+                }
+            }
+            $plugin->getRegionBlockerListener()->clearMine($this->name);
+            $plugin->getResetProgressManager()->notifyComplete($this->name);
+        }
+    }
+
+    /**
+     * @param Server $server
+     * @param mixed $progress
+     */
+    public function onProgressUpdate(Server $server, $progress){
+        $plugin = $server->getPluginManager()->getPlugin("MineReset");
+        if($plugin instanceof MineReset and $plugin->isEnabled()) {
+            $plugin->getResetProgressManager()->notifyProgress($progress, $this->name);
+        }
+    }
+}

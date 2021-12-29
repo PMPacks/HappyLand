@@ -1,0 +1,430 @@
+name: KDR
+version: 1.0.0
+api: [3.0.0]
+main: JackMD\KDR\KDR
+author: JackMD
+description: KDR, Kill Death Ratio plugin which keeps track of players kill and death count along with kill to death ratio.
+<?php
+declare(strict_types = 1);
+
+/**
+ *   _   _____________
+ *  | | / /  _  \ ___ \
+ *  | |/ /| | | | |_/ /
+ *  |    \| | | |    /
+ *  | |\  \ |/ /| |\ \
+ *  \_| \_/___/ \_| \_|
+ *
+ * KDR, a Kill Death Ratio plugin for PocketMine-MP
+ * Copyright (c) 2018 JackMD  < https://github.com/JackMD >
+ *
+ * Discord: JackMD#3717
+ * Twitter: JackMTaylor_
+ *
+ * This software is distributed under "GNU General Public License v3.0".
+ * This license allows you to use it and/or modify it but you are not at
+ * all allowed to sell this plugin at any cost. If found doing so the
+ * necessary action required would be taken.
+ *
+ * KDR is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License v3.0 for more details.
+ *
+ * You should have received a copy of the GNU General Public License v3.0
+ * along with this program. If not, see
+ * <https://opensource.org/licenses/GPL-3.0>.
+ * ------------------------------------------------------------------------
+ */
+
+namespace JackMD\KDR;
+
+use JackMD\KDR\provider\ProviderInterface;
+use JackMD\KDR\provider\SQLiteProvider;
+use JackMD\KDR\provider\YamlProvider;
+use pocketmine\plugin\PluginBase;
+
+class KDR extends PluginBase{
+	
+	/** @var KDR */
+	private static $instance;
+	
+	/** @var ProviderInterface */
+	private $provider;
+	
+	/**
+	 * @return KDR
+	 */
+	public static function getInstance(): KDR{
+		return self::$instance;
+	}
+	
+	public function onLoad(): void{
+		self::$instance = $this;
+	}
+	
+	public function onEnable(): void{
+		$this->saveDefaultConfig();
+		$this->setProvider();
+		$this->getProvider()->prepare();
+		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
+		$this->getLogger()->info("KillCounter Plugin Enabled.");
+	}
+	
+	/**
+	 * @return bool
+	 */
+	private function isValidProvider(): bool{
+		if(!isset($this->provider) || ($this->provider === null) || !($this->provider instanceof ProviderInterface)){
+			return false;
+		}
+		return true;
+	}
+	
+	public function onDisable(){
+		if($this->isValidProvider()){
+			$this->getProvider()->close();
+		}
+	}
+	
+	/**
+	 * @return ProviderInterface
+	 */
+	public function getProvider(): ProviderInterface{
+		return $this->provider;
+	}
+	
+	private function setProvider(): void{
+		$providerName = $this->getConfig()->get("data-provider");
+		$provider = null;
+		switch(strtolower($providerName)){
+			case "sqlite":
+				$provider = new SQLiteProvider();
+				$this->getLogger()->notice("SQLiteProvider successfully enabled.");
+				break;
+			case "yaml":
+				$provider = new YamlProvider();
+				$this->getLogger()->notice("YamlProvider successfully enabled.");
+				break;
+			default:
+				$this->getLogger()->error("Please set a valid data-provider in config.yml. Plugin Disabled");
+				$this->getServer()->getPluginManager()->disablePlugin($this);
+				break;
+		}
+		if($provider instanceof ProviderInterface){
+			$this->provider = $provider;
+		}
+	}
+}
+
+<?php
+declare(strict_types = 1);
+
+/**
+ *   _   _____________
+ *  | | / /  _  \ ___ \
+ *  | |/ /| | | | |_/ /
+ *  |    \| | | |    /
+ *  | |\  \ |/ /| |\ \
+ *  \_| \_/___/ \_| \_|
+ *
+ * KDR, a Kill Death Ratio plugin for PocketMine-MP
+ * Copyright (c) 2018 JackMD  < https://github.com/JackMD >
+ *
+ * Discord: JackMD#3717
+ * Twitter: JackMTaylor_
+ *
+ * This software is distributed under "GNU General Public License v3.0".
+ * This license allows you to use it and/or modify it but you are not at
+ * all allowed to sell this plugin at any cost. If found doing so the
+ * necessary action required would be taken.
+ *
+ * KDR is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License v3.0 for more details.
+ *
+ * You should have received a copy of the GNU General Public License v3.0
+ * along with this program. If not, see
+ * <https://opensource.org/licenses/GPL-3.0>.
+ * ------------------------------------------------------------------------
+ */
+
+namespace JackMD\KDR\provider;
+
+use JackMD\KDR\KDR;
+use pocketmine\Player;
+use pocketmine\utils\Config;
+
+class YamlProvider implements ProviderInterface{
+	
+	public function prepare(): void{
+		if(!is_dir(KDR::getInstance()->getDataFolder() . "data/")){
+			mkdir(KDR::getInstance()->getDataFolder() . "data/");
+		}
+	}
+	
+	/**
+	 * @param Player $player
+	 */
+	public function registerPlayer(Player $player): void{
+		$config = new Config(KDR::getInstance()->getDataFolder() . "data/" . $player->getLowerCaseName() . ".yml", Config::YAML);
+		if((!$config->exists("kills")) && (!$config->exists("deaths"))){
+			$config->setAll(["kills" => 0, "deaths" => 0]);
+			$config->save();
+		}
+	}
+	
+	/**
+	 * @param Player $player
+	 * @param int    $points
+	 */
+	public function addDeathPoints(Player $player, int $points = 1): void{
+		$config = new Config(KDR::getInstance()->getDataFolder() . "data/" . $player->getLowerCaseName() . ".yml", Config::YAML);
+		$config->set("deaths", $this->getPlayerDeathPoints($player) + $points);
+		$config->save();
+	}
+	
+	/**
+	 * @param Player $player
+	 * @return int
+	 */
+	public function getPlayerDeathPoints(Player $player): int{
+		$config = new Config(KDR::getInstance()->getDataFolder() . "data/" . $player->getLowerCaseName() . ".yml", Config::YAML);
+		return (int) $config->get("deaths");
+	}
+	
+	/**
+	 * @param Player $player
+	 * @param int    $points
+	 */
+	public function addKillPoints(Player $player, int $points = 1): void{
+		$config = new Config(KDR::getInstance()->getDataFolder() . "data/" . $player->getLowerCaseName() . ".yml", Config::YAML);
+		$config->set("kills", $this->getPlayerKillPoints($player) + $points);
+		$config->save();
+	}
+	
+	/**
+	 * @param Player $player
+	 * @return bool
+	 */
+	public function playerExists(Player $player): bool{
+		$config = new Config(KDR::getInstance()->getDataFolder() . "data/" . $player->getLowerCaseName() . ".yml", Config::YAML);
+		return (($config->exists("kills")) && ($config->exists("deaths"))) ? true : false;
+	}
+	
+	/**
+	 * @param Player $player
+	 * @return string
+	 */
+	public function getKillToDeathRatio(Player $player): string{
+		$kills = $this->getPlayerKillPoints($player);
+		$deaths = $this->getPlayerDeathPoints($player);
+		if($deaths !== 0){
+			$ratio = $kills / $deaths;
+			if($ratio !== 0){
+				return number_format($ratio, 1);
+			}
+		}
+		return "0.0";
+	}
+	
+	/**
+	 * @param Player $player
+	 * @return int
+	 */
+	public function getPlayerKillPoints(Player $player): int{
+		$config = new Config(KDR::getInstance()->getDataFolder() . "data/" . $player->getLowerCaseName() . ".yml", Config::YAML);
+		return (int) $config->get("kills");
+	}
+	
+	public function close(): void{
+		//useless in this case...
+	}
+}
+
+<?php
+declare(strict_types = 1);
+
+/**
+ *   _   _____________
+ *  | | / /  _  \ ___ \
+ *  | |/ /| | | | |_/ /
+ *  |    \| | | |    /
+ *  | |\  \ |/ /| |\ \
+ *  \_| \_/___/ \_| \_|
+ *
+ * KDR, a Kill Death Ratio plugin for PocketMine-MP
+ * Copyright (c) 2018 JackMD  < https://github.com/JackMD >
+ *
+ * Discord: JackMD#3717
+ * Twitter: JackMTaylor_
+ *
+ * This software is distributed under "GNU General Public License v3.0".
+ * This license allows you to use it and/or modify it but you are not at
+ * all allowed to sell this plugin at any cost. If found doing so the
+ * necessary action required would be taken.
+ *
+ * KDR is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License v3.0 for more details.
+ *
+ * You should have received a copy of the GNU General Public License v3.0
+ * along with this program. If not, see
+ * <https://opensource.org/licenses/GPL-3.0>.
+ * ------------------------------------------------------------------------
+ */
+
+namespace JackMD\KDR\provider;
+
+use pocketmine\Player;
+
+interface ProviderInterface{
+	
+	/**
+	 * Prepare initial steps required to get the database running.
+	 */
+	public function prepare(): void;
+	
+	/**
+	 * Register a player into the database.
+	 *
+	 * @param Player $player
+	 */
+	public function registerPlayer(Player $player): void;
+	
+	/**
+	 * Add death points to the player.
+	 *
+	 * @param Player $player
+	 * @param int    $points
+	 */
+	public function addDeathPoints(Player $player, int $points = 1): void;
+	
+	/**
+	 * Add kill points to the player.
+	 *
+	 * @param Player $player
+	 * @param int    $points
+	 */
+	public function addKillPoints(Player $player, int $points = 1): void;
+	
+	/**
+	 * Check if a player is already registered.
+	 *
+	 * @param Player $player
+	 * @return bool
+	 */
+	public function playerExists(Player $player): bool;
+	
+	/**
+	 * Returns the kill points of a player.
+	 *
+	 * @param Player $player
+	 * @return int
+	 */
+	public function getPlayerKillPoints(Player $player): int;
+	
+	/**
+	 * Returns the death points of a player.
+	 *
+	 * @param Player $player
+	 * @return int
+	 */
+	public function getPlayerDeathPoints(Player $player): int;
+	
+	/**
+	 * @param Player $player
+	 * @return string
+	 */
+	public function getKillToDeathRatio(Player $player): string;
+	
+	/**
+	 * Close the database.
+	 */
+	public function close(): void;
+}
+
+<?php
+declare(strict_types = 1);
+
+/**
+ *   _   _____________
+ *  | | / /  _  \ ___ \
+ *  | |/ /| | | | |_/ /
+ *  |    \| | | |    /
+ *  | |\  \ |/ /| |\ \
+ *  \_| \_/___/ \_| \_|
+ *
+ * KDR, a Kill Death Ratio plugin for PocketMine-MP
+ * Copyright (c) 2018 JackMD  < https://github.com/JackMD >
+ *
+ * Discord: JackMD#3717
+ * Twitter: JackMTaylor_
+ *
+ * This software is distributed under "GNU General Public License v3.0".
+ * This license allows you to use it and/or modify it but you are not at
+ * all allowed to sell this plugin at any cost. If found doing so the
+ * necessary action required would be taken.
+ *
+ * KDR is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License v3.0 for more details.
+ *
+ * You should have received a copy of the GNU General Public License v3.0
+ * along with this program. If not, see
+ * <https://opensource.org/licenses/GPL-3.0>.
+ * ------------------------------------------------------------------------
+ */
+
+namespace JackMD\KDR;
+
+use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerDeathEvent;
+use pocketmine\event\player\PlayerJoinEvent;
+use pocketmine\Player;
+
+class EventListener implements Listener{
+
+	/** @var KDR */
+	public $plugin;
+	
+	/**
+	 * EventListener constructor.
+	 *
+	 * @param KDR $plugin
+	 */
+	public function __construct(KDR $plugin){
+		$this->plugin = $plugin;
+	}
+	
+	/**
+	 * @param PlayerJoinEvent $event
+	 */
+	public function onJoin(PlayerJoinEvent $event){
+		$player = $event->getPlayer();
+		if(!$this->plugin->getProvider()->playerExists($player)){
+			$this->plugin->getProvider()->registerPlayer($player);
+		}
+	}
+	
+	/**
+	 * @param PlayerDeathEvent $event
+	 */
+	public function onPlayerKill(PlayerDeathEvent $event){
+		$player = $event->getPlayer();
+		if($player instanceof Player){
+			$this->plugin->getProvider()->addDeathPoints($player, (int) $this->plugin->getConfig()->get("death-points"));
+		}
+		$cause = $player->getLastDamageCause();
+		if($cause instanceof EntityDamageByEntityEvent){
+			$damager = $cause->getDamager();
+			if($damager instanceof Player){
+				$this->plugin->getProvider()->addKillPoints($damager, (int) $this->plugin->getConfig()->get("kill-points"));
+			}
+		}
+	}
+}

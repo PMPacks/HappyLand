@@ -1,0 +1,14 @@
+---
+name: PCFly
+main: Angel\PCFly\Main
+api:
+- 3.0.0
+version: 2.1.1
+author: Angel
+commands:
+  fly:
+    description: /fly command!
+permissions:
+  fly.command:
+    default: false
+...

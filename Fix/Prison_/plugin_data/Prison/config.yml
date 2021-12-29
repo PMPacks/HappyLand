@@ -1,0 +1,57 @@
+#The prison-relative worlds
+worlds:
+  - "prisonspawn"
+  - "a"
+  - "b"
+  - "c"
+#Message sent when a player tries to use a prison-related command outside the prison world.
+not-in-prison-world: "§4You are not in prison world, you can't use that command here."
+#The default tag for a player who doesn't have any prestige
+no-prestige-tag: "..."
+#The message displayed when a player tries to rankup but he doesn't have enough money. Use {money} to get the missing money to rankup.
+not-enough-money: "§4You don't have enough money to rankup. You need {money} more money to rankup."
+#The message displayed when a player rankups. Use {rank} to get the player's new rank
+rankup-message: "§2Congratulations! You are now rank §4{rank}"
+#The message sent to all the players on the server when a player rankups. Use {name} to get the player's name, and {rank} to get the new rank.
+rankup-broadcast: "§2{name} is now rank §4{rank}"
+#Set to true to reset player's money on prestige, otherwise set to false
+reset-money-on-prestige: true
+#The message sent to warn the player about the money reset on prestige
+reset-money-message: "§4All your moneys will be resetted!"
+#The message displayed when a player prestiges. Use {prestige} to get the player's prestige
+prestige-message: "§2Congratulations! You are now §4{prestige}"
+#The message sent to all the players on the server when a player prestiges. Use {name} to get the player's name, and {prestige} to get the new prestige.
+prestige-broadcast: "§2{name} is now §4{prestige}"
+#The message sent to the player after /sell command is issued. Use {money} to get the amount of money received.
+money-gained: "§2You got §4{money}"
+#The permission standard for every rank to set when a player rankups. Use {rank} to get the new rank.
+permission: "essentials.warps.{rank}"
+#The base multiplier value (default: 1.0)
+multiplier-base: 1.0
+#Set to true to increase the multiplier when an user prestiges, else to false
+multiplier-increment-on-prestige: true
+#The increase of the multiplier for every prestige. Default: 0.5
+multiplier-increase: 0.5
+#The message sent when a player doesn't have permissions to run a command. Use {command} to get the command he typed.
+no-permission-message: "§4You don't have permission to use the {command} command."
+#The format of the message sent in the chat. Use {prestige} to get the player's prestige, {rank} to get the player's rank and
+#{default format} to get the default chat format. Note: if you use PureChat, {default format} will use PureChat's format
+chat-format: "§2[{prestige}][{rank}] §r{default format}"
+#The message sent when a player uses /mystatus command. Use {rank} to get the player's rank, {prestige} to get the player's prestige,
+#{next rank} to get the player's next rank, {next prestige} to get the player's next prestige, and {money missing} to get the money missing to next rank/prestige.
+mystatus-message: "§2Your status:\n§6Rank: {rank}\nPrestige: {prestige}\nNext rank: {next rank}\nNext prestige: {next prestige}\nMoney missing: {money missing}"
+#List of all prison ranks with relative name and rankup cost, you can add as many ranks as you want
+ranks:
+  "A": 0
+  "B": 5000
+  "C": 15000
+#The list of all prestiges with relative name and cost, you can add as many prestiges as you want
+prestiges:
+  "P1": 500000
+  "P2": 1000000
+  "P3": 2000000
+#The selling cost of every block/item. Note: the price is relative to 1 block/item. Format: "id:meta": selling cost
+blocks:
+  "1:0": 5
+  "4:0": 5
+  "14:0": 50

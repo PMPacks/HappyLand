@@ -1,0 +1,7 @@
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/DeveloperNeb101/RevShopUI
+branches:
+- master
+projects:
+  RevShopUI:
+    path: ""
+...

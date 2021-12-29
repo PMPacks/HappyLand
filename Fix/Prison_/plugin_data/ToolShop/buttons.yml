@@ -1,0 +1,24 @@
+---
+buttons:
+  turn_left:
+    id: 339
+    damage: 0
+    count: 1
+    name: '&r&6&l<- Turn Left'
+    lore:
+    - '&r&7Turn to left page.'
+  turn_right:
+    id: 339
+    damage: 0
+    count: 1
+    name: '&r&6&lTurn Right ->'
+    lore:
+    - '&r&7Turn to right page.'
+  categories:
+    id: 54
+    damage: 0
+    count: 1
+    name: '&r&e&lView Categories'
+    lore:
+    - '&r&7Back to categories.'
+...

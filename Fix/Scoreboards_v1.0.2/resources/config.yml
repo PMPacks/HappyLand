@@ -1,0 +1,51 @@
+---
+# LIST CONFIGABLE #
+#
+# {name} = Player Name
+# {x} = Player Coord X
+# {y} = Player Coord Y
+# {z} = Player Coord Z
+# {world} = World Level Name
+# {money} = Player's Money
+# {faction} = Player's Faction
+# {rank} = Player's Rank (only PurePerms)
+# {online} = Server Online List
+# {max} = Server Max Query
+# {version} = Server Version
+# {tps} = Server TicksPerSecond
+# {ping} = Player's Ping/MS
+#
+# & = §
+
+# FACTION if you want to turn on please turn "true"
+faction: false
+faction.plugin: FactionsPro
+
+
+# MONEY if you want to turn on please turn "true"
+money: true
+
+
+# RANK if you want to turn on please turn "true"
+rank: false
+
+
+# UPDATE INTERVAL
+update-interval: 20
+# 20 = 1 seconds
+
+# TITLES CONFIGABLE
+titles:
+  - "§l§eSERVER NAME"
+  - "§l§bSERVER NAME"
+  - "§l§aSERVER NAME"
+  - "§l§dSERVER NAME"
+  
+# LINES CONFIGABLE
+lines:
+  - " Hi I'm &7{name}"
+  - " Do you know de way?!"
+  - "                 "
+  - " &cOnline Players: §b{online}/{max}"
+  - " &cXYZ: &b{x} {y} {z}"
+...

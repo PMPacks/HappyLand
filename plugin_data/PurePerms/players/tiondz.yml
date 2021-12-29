@@ -1,0 +1,36 @@
+---
+userName: TionDz
+group: VIP3
+permissions:
+- essentialstp.command.warp.b
+- essentialstp.command.warp.c
+- essentialstp.command.warp.d
+- essentialstp.command.warp.e
+- essentialstp.command.warp.b
+- essentialstp.command.warp.c
+- essentialstp.command.warp.d
+- essentialstp.command.warp.e
+- essentialstp.command.warp.f
+- essentialstp.command.warp.g
+- essentialstp.command.warp.h
+- essentialstp.command.warp.i
+- essentialstp.command.warp.j
+- essentialstp.command.warp.k
+- essentialstp.command.warp.l
+- essentialstp.command.warp.m
+- essentialstp.command.warp.n
+- essentialstp.command.warp.o
+- essentialstp.command.warp.p
+- essentialstp.command.warp.q
+- essentialstp.command.warp.r
+- simplewarp.command.warp.b
+- simplewarp.command.warp.b
+- simplewarp.command.warp.c
+- simplewarp.command.warp.d
+- simplewarp.command.warp.e
+- simplewarp.command.warp.f
+- simplewarp.command.warp.g
+worlds: []
+time: -1
+expTime: -1
+...

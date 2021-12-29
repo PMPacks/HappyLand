@@ -1,0 +1,15 @@
+---
+userName: KNMinerProGamer
+group: VIP1
+permissions:
+- essentialstp.command.warp.b
+- essentialstp.command.warp.b
+- simplewarp.command.warp.b
+- simplewarp.command.warp.c
+- simplewarp.command.warp.d
+- simplewarp.command.warp.b
+- simplewarp.command.warp.b
+worlds: []
+time: -1
+expTime: -1
+...

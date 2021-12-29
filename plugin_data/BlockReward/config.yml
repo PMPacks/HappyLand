@@ -1,0 +1,30 @@
+---
+
+debug: false
+#This is advised to be left at false unless told to enable by a contributer.
+
+enabled: true
+#true/false to turn off/on the plugin in-game.
+
+money_addon: false
+#money addon means it gives the option to givemoney when breaking/placing a block.
+#only supports EconomyAPI.
+
+blocks:
+  stone:
+    - '$5000'
+
+# EXAMPLE :
+# blocks:
+#   diamond_block:
+#     - 'creative'  use creative to give that game mode
+#     - 'survival'  same ^
+#     - 'fly'       toggle flying on
+#     - 'kill'      Kill the player
+#     - '$900'      Give somemoney to player
+
+# Block name (diamond_block) should be the same as what mcpe says when you hover on the item in-game
+# NOTE replace any spaces with _ and please lowercase all.
+
+
+---

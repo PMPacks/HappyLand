@@ -1,0 +1,14 @@
+name: ToolShop
+main: kino\chestshop\ChestShop
+api: 3.0.1
+version: 4
+commands:
+  toolshop:
+    aliases: ["pcoin", "tshop"]
+permissions:
+  chestshop.command.opcmd:
+    default: op
+  chestshop.command.add:
+    default: op
+  chestshop.command.remove:
+    default: op

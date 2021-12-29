@@ -1,0 +1,3636 @@
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools;
+
+use czechpmdevs\buildertools\commands\BlockInfoCommand;
+use czechpmdevs\buildertools\commands\ClearInventoryCommand;
+use czechpmdevs\buildertools\commands\CopyCommand;
+use czechpmdevs\buildertools\commands\CubeCommand;
+use czechpmdevs\buildertools\commands\DrawCommand;
+use czechpmdevs\buildertools\commands\FillCommand;
+use czechpmdevs\buildertools\commands\FirstPositionCommand;
+use czechpmdevs\buildertools\commands\FixCommand;
+use czechpmdevs\buildertools\commands\FlipCommand;
+use czechpmdevs\buildertools\commands\HelpCommand;
+use czechpmdevs\buildertools\commands\IdCommand;
+use czechpmdevs\buildertools\commands\MergeCommand;
+use czechpmdevs\buildertools\commands\NaturalizeCommand;
+use czechpmdevs\buildertools\commands\PasteCommand;
+use czechpmdevs\buildertools\commands\RedoCommand;
+use czechpmdevs\buildertools\commands\ReplaceCommand;
+use czechpmdevs\buildertools\commands\RotateCommand;
+use czechpmdevs\buildertools\commands\SecondPositionCommand;
+use czechpmdevs\buildertools\commands\SphereCommand;
+use czechpmdevs\buildertools\commands\TreeCommand;
+use czechpmdevs\buildertools\commands\UndoCommand;
+use czechpmdevs\buildertools\commands\WandCommand;
+use czechpmdevs\buildertools\editors\Canceller;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Decorator;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\Filler;
+use czechpmdevs\buildertools\editors\Fixer;
+use czechpmdevs\buildertools\editors\Naturalizer;
+use czechpmdevs\buildertools\editors\Printer;
+use czechpmdevs\buildertools\editors\Replacement;
+use czechpmdevs\buildertools\event\listener\EventListener;
+use pocketmine\plugin\PluginBase;
+
+/**
+ * Class BuilderTools
+ * @package buildertools
+ */
+class BuilderTools extends PluginBase {
+
+    /** @var  BuilderTools $instance */
+    private static $instance;
+
+    /** @var  string $prefix */
+    private static $prefix;
+
+    /** @var  Editor[] $editors */
+    private static $editors = [];
+
+    /** @var EventListener $listener */
+    private static $listener;
+
+    public function onEnable() {
+        self::$instance = $this;
+        self::$prefix = "§7[BuilderTools] §a";
+        $this->registerCommands();
+        $this->initListner();
+        $this->registerEditors();
+    }
+
+    private function registerEditors() {
+        self::$editors["Filler"] = new Filler;
+        self::$editors["Printer"] = new Printer;
+        self::$editors["Replacement"] = new Replacement;
+        self::$editors["Naturalizer"] = new Naturalizer;
+        self::$editors["Copier"] = new Copier;
+        self::$editors["Canceller"] = new Canceller;
+        self::$editors["Decorator"] = new Decorator;
+        self::$editors["Fixer"] = new Fixer;
+    }
+
+    private function initListner() {
+        $this->getServer()->getPluginManager()->registerEvents(self::$listener = new EventListener, $this);
+    }
+    private function registerCommands() {
+        $map = $this->getServer()->getCommandMap();
+        $map->register("BuilderTools", new FirstPositionCommand);
+        $map->register("BuilderTools", new SecondPositionCommand);
+        $map->register("BuilderTools", new WandCommand);
+        $map->register("BuilderTools", new FillCommand);
+        $map->register("BuilderTools", new HelpCommand);
+        $map->register("BuilderTools", new DrawCommand);
+        $map->register("BuilderTools", new SphereCommand);
+        $map->register("BuilderTools", new ReplaceCommand);
+        $map->register("BuilderTools", new IdCommand);
+        $map->register("BuilderTools", new ClearInventoryCommand);
+        $map->register("BuilderTools", new NaturalizeCommand);
+        $map->register("BuilderTools", new CopyCommand);
+        $map->register("BuilderTools", new PasteCommand);
+        $map->register("BuilderTools", new RotateCommand);
+        $map->register("BuilderTools", new UndoCommand);
+        $map->register("BuilderTools", new RedoCommand);
+        $map->register("BuilderTools", new TreeCommand);
+        #$map->register("BuilderTools", new DecorationCommand); taken down due to release
+        $map->register("BuilderTools", new FlipCommand);
+        $map->register("BuilderTools", new FixCommand);
+        $map->register("BuilderTools", new CubeCommand);
+        $map->register("BuilderTools", new MergeCommand);
+        $map->register("BuilderTools", new BlockInfoCommand);
+    }
+
+    /**
+     * @param string $name
+     * @return Editor $editor
+     */
+    public static function getEditor(string $name): Editor {
+        return self::$editors[$name];
+    }
+
+    /**
+     * @return string $prefix
+     */
+    public static function getPrefix(): string {
+        return self::$prefix;
+    }
+
+    /**
+     * @return EventListener $listener
+     */
+    public static function getListener(): EventListener {
+        return self::$listener;
+    }
+
+    /**
+     * @return BuilderTools $instance
+     */
+    public static function getInstance(): BuilderTools {
+        return self::$instance;
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\Position;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class FirstPositionCommand
+ * @package buildertools\commands
+ */
+class FirstPositionCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * FirstPositionCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/pos1", "Select first position", null, ["/1"]);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.pos1")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        Selectors::addSelector($sender, 1, $position = new Position((int)round($sender->getX()), (int)round($sender->getY()), (int)round($sender->getZ()), $sender->getLevel()));
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSelected first position at {$position->getX()}, {$position->getY()}, {$position->getZ()}");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\Position;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+
+/**
+ * Class SecondPositionCommand
+ * @package buildertools\commands
+ */
+class SecondPositionCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * SecondPositionCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/pos2", "Select second position", null, ["/2"]);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.pos2")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        Selectors::addSelector($sender, 2, $position = new Position((int)round($sender->getX()), (int)round($sender->getY()), (int)round($sender->getZ()), $sender->getLevel()));
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSelected second position at {$position->getX()}, {$position->getY()}, {$position->getZ()}");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class WandCommand
+ * @package buildertools\commands
+ */
+class WandCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * WandCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/wand", "Switch wand tool", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+        }
+        if(!$sender->hasPermission("bt.cmd.wand")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        Selectors::switchWandSelector($sender);
+        $switch = Selectors::isWandSelector($sender) ? "ON" : "OFF";
+        $sender->sendMessage(BuilderTools::getPrefix()."§aWand tool turned {$switch}!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\Filler;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class FillCommand
+ * @package buildertools\commands
+ */
+class FillCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * FillCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/fill", "Fill selected positions.", null, ["/set", "/change"]);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+
+        if(!$sender->hasPermission("bt.cmd.fill")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+
+        if(!isset($args[0])) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cUsage: §7//fill <id1:meta1,id2:meta2,...>");
+            return;
+        }
+
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+
+        $firstPos = Selectors::getPosition($sender, 1);
+        $secondPos = Selectors::getPosition($sender, 2);
+
+        if($firstPos->getLevel()->getName() != $secondPos->getLevel()->getName()) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cPositions must be in same level");
+            return;
+        }
+
+        $startTime = microtime(true);
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+
+        $blocks = $filler->prepareFill($firstPos->asVector3(), $secondPos->asVector3(), $firstPos->getLevel(), $args[0]);
+        $result = $filler->fill($sender, $blocks);
+
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSelected area filled in " . (string)round(microtime(true)-$startTime, 2) . " (" . (string)$result->countBlocks . " block changed)");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $builderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class HelpCommand
+ * @package buildertools\commands
+ */
+class HelpCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * HelpCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/commands", "Displays BuilderTools commands", null, ["/?", "buildertools"]);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+        }
+        if(!$sender->hasPermission("bt.cmd.help")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        /* FIXING TWO COMMANDS IN PROGRESS
+         * if(empty($args[0])) {
+            $sender->sendMessage("---- BuilderTools Commands (1/5) ----\n".
+                "§2//ci: §fClears your inventory\n".
+                "§2//copy: §fCopy selected area\n".
+                "§2//cube: §fCreate cube\n".
+                "§2//decoration: §fNatural decoration commands");
+            return;
+        }
+        if($args[0] == "2") {
+            $sender->sendMessage("---- BuilderTools Commands (2/5) ----\n".
+                "§2//draw: §fSelect first position\n".
+                "§2//fill: §fFill selected area\n".
+                "§2//flip: §fFlip copied area\n".
+                "§2//commands: §fDisplays help pages");
+            return;
+        }
+        if($args[0] == "3") {
+            $sender->sendMessage("---- §fBuilderTools Commands (3/5) ----\n".
+                "§2//id §fDisplays item id\n".
+                "§2//naturalize §fNaturalize selected area\n".
+                "§2//paste §fPaste selected area\n".
+                "§2//pos1 §fSelect first position");
+            return;
+        }
+        if($args[0] == "4") {
+            $sender->sendMessage("---- §fBuilderTools Commands (4/5) ----\n".
+                "§2//pos2: §fSelect second position\n".
+                "§2//redo: §fRedo last BuilderTools action\n".
+                "§2//replace: §fReplace blocks in selected area\n".
+                "§2//sphere: §fCreate sphere\n");
+            return;
+        }
+        if($args[0] == "5") {
+            $sender->sendMessage("---- §fBuilderTools Commands (4/5) ----\n".
+                "§2//undo: §fUndo last action\n".
+                "§2//wand: §fSwitch wand command\n");
+            return;
+        }*/
+        if(!isset($args[0])) {
+            $sender->sendMessage("---- BuilderTools Commands (1/5) ----\n".
+                "§2//ci: §fClears your inventory\n".
+                "§2//copy: §fCopy selected area\n".
+                "§2//cube: §fCreate cube\n".
+                "§2//draw: §fSelect first position");
+            return;
+        }
+        if($args[0] == "2") {
+            $sender->sendMessage("---- BuilderTools Commands (2/5) ----\n".
+                "§2//fill: §fFill selected area\n".
+                "§2//flip: §fFlip copied area\n".
+                "§2//commands: §fDisplays help pages\n".
+                "§2//id §fDisplays item id");
+            return;
+        }
+        if($args[0] == "3") {
+            $sender->sendMessage("---- §fBuilderTools Commands (3/5) ----\n".
+                "§2//merge §fMerge copied area\n".
+                "§2//naturalize §fNaturalize selected area\n".
+                "§2//paste §fPaste selected area\n".
+                "§2//pos1 §fSelect first position"
+            );
+            return;
+        }
+        if($args[0] == "4") {
+            $sender->sendMessage("---- §fBuilderTools Commands (4/5) ----\n".
+                "§2//pos2: §fSelect second position\n".
+                "§2//replace: §fReplace blocks in selected area\n".
+                "§2//sphere: §fCreate sphere\n" .
+                "§2//undo: §fUndo last action"
+            );
+            return;
+        }
+        if($args[0] == "5") {
+            $sender->sendMessage("---- §fBuilderTools Commands (4/5) ----\n".
+                "§2//wand: §fSwitch wand command"
+            );
+            return;
+        }
+
+        return;
+    }
+
+    /**
+     * @return Plugin|BuilderTools $builderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Printer;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class DrawCommand
+ * @package buildertools\commands
+ */
+class DrawCommand extends Command implements PluginIdentifiableCommand {
+
+    /** @var int $minBrush */
+    private $minBrush = 1;
+
+    /** @var int $maxBrush */
+    private $maxBrush = 6;
+
+    /**
+     * DrawCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/draw", "Draw witch blocks", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.draw")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!isset($args[0])) {
+            $sender->sendMessage("§cUsage: §7//draw <cube|sphere|off> [brush: {$this->minBrush}-{$this->maxBrush} | on | off]  [fall = false]");
+            return;
+        }
+        if(!in_array(strval($args[0]), ["on", "off", "cube", "sphere", "custom"])) {
+            $sender->sendMessage("§cUsage: §7//draw <cube|sphere|off> [brush: {$this->minBrush}-{$this->maxBrush}]  [fall = false]");
+            return;
+        }
+        if(isset($args[1]) && is_numeric($args[1]) && intval($args[1]) >= $this->maxBrush && intval($args[1]) <= $this->minBrush) {
+            $sender->sendMessage("§cBrush #{$args[1]} does not exists!");
+            return;
+        }
+        if($args[0] == "off") {
+            Selectors::removeDrawnigPlayer($sender);
+            $sender->sendMessage(BuilderTools::getPrefix()."§aBrush removed!");
+            return;
+        }
+
+        $mode = 0;
+
+        if($args[0] == "cube") $mode = Printer::CUBE;
+        if($args[0] == "sphere") $mode = Printer::SPHERE;
+
+        $brush = 1;
+
+        if(isset($args[1]) && is_numeric($args[1])) {
+            $brush = intval($args[1]);
+        }
+
+        $fall = false;
+
+        if(isset($args[2]) && $args[2] == "true") {
+            $fall = true;
+        }
+
+        Selectors::addDrawingPlayer($sender, $brush, $mode, $fall);
+
+        $fall = $fall ? "§2true§a" : "§cfalse§a";
+
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSelected brush §7#{$brush} §a(§7shape: §a{$args[0]} §7Fall:$fall)!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\object\EditorResult;
+use czechpmdevs\buildertools\editors\Printer;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\item\Item;
+use pocketmine\level\Position;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class SphereCommand
+ * @package buildertools\commands
+ */
+class SphereCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * SphereCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/sphere", "Create sphere", null, []);
+    }
+
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.sphere")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!isset($args[0])) {
+            $sender->sendMessage("§cUsage: §7//sphere <id1:dmg1,id2:dmg2:,...> <radius>");
+            return;
+        }
+        $radius = isset($args[1]) ? (int)($args[1]) : 5;
+
+        /** @var Printer $printer */
+        $printer = BuilderTools::getEditor(Editor::PRINTER);
+        /** @var EditorResult $result */
+        $result = $printer->makeSphere($sender, $sender, $radius, $args[0]);
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSphere created in ".(string)round($result->time, 2)." (".(string)$result->countBlocks." changed)!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\Filler;
+use czechpmdevs\buildertools\editors\Replacement;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class ReplaceCommand
+ * @package buildertools\commands
+ */
+class ReplaceCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * ReplaceCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/replace", "Replace selected blocks", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.replace")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!isset($args[0]) || !isset($args[1])) {
+            $sender->sendMessage("§cUsage: §7//replace <BlocksToReplace - id1:meta1,id2:meta2,...> <Blocks - id1:meta1,id2:meta2,...>");
+            return;
+        }
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+        $firstPos = Selectors::getPosition($sender, 1);
+        $secondPos = Selectors::getPosition($sender, 2);
+        if($firstPos->getLevel()->getName() != $secondPos->getLevel()->getName()) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cPositions must be in same level");
+            return;
+        }
+
+        $startTime = microtime(true);
+
+        /** @var Replacement $replacement */
+        $replacement = BuilderTools::getEditor(Editor::REPLACEMENT);
+        $list = $replacement->prepareReplace($firstPos, $secondPos, $firstPos->getLevel(), $args[0], $args[1]);
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        $result = $filler->fill($sender, $list);
+
+        $count = $result->countBlocks;
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSelected area filled in ".round(microtime(true)-$startTime, 2)." ({$count} blocks changed)!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $builderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class IdCommand
+ * @package buildertools\commands
+ */
+class IdCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * IdCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/id", "Send id of item in your hands", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.id")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        $sender->sendMessage(BuilderTools::getPrefix()."§aID: §9{$sender->getInventory()->getItemInHand()->getId()}:{$sender->getInventory()->getItemInHand()->getDamage()}");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\item\Item;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class ClearInventoryCommand
+ * @package buildertools\commands
+ */
+class ClearInventoryCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * ClearInventoryCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/clearinventory", "Clear inventory", null, ["/ci"]);
+    }
+
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.clearinventory")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+
+        $removed = 0;
+        foreach ($sender->getInventory()->getContents() as $index => $item) {
+            $sender->getInventory()->setItem($index, Item::get(Item::AIR));
+            $removed++;
+        }
+
+        $sender->sendMessage(BuilderTools::getPrefix()."§aInventory cleared, $removed items removed.");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\Filler;
+use czechpmdevs\buildertools\editors\Naturalizer;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class NaturalizeCommand
+ * @package buildertools\commands
+ */
+class NaturalizeCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * NaturalizeCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/naturalize", "Naturalize selected area.", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.fill")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+        $firstPos = Selectors::getPosition($sender, 1);
+        $secondPos = Selectors::getPosition($sender, 2);
+        if($firstPos->getLevel()->getName() != $secondPos->getLevel()->getName()) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cPositions must be in same level");
+            return;
+        }
+        /** @var Naturalizer $filler */
+        $filler = BuilderTools::getEditor(Editor::NATURALIZER);
+        $count = $filler->naturalize($firstPos->getX(), $firstPos->getY(), $firstPos->getZ(), $secondPos->getX(), $secondPos->getY(), $secondPos->getZ(), $sender->getLevel(), $sender);
+        $sender->sendMessage(BuilderTools::getPrefix()."§aSelected area successfully naturalized!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $builderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class CopyCommand
+ * @package buildertools\commands
+ */
+class CopyCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * CopyCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/copy", "Copy selected area", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.copy")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+        $pos1 = Selectors::getPosition($sender, 1);
+        $pos2 = Selectors::getPosition($sender, 2);
+        /** @var Copier $copier */
+        $copier = BuilderTools::getEditor(Editor::COPIER);
+        $copier->copy($pos1->getX(), $pos1->getY(), $pos1->getZ(), $pos2->getX(), $pos2->getY(), $pos2->getZ(), $sender);
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\Position;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class CopyCommand
+ * @package buildertools\commands
+ */
+class PasteCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * PasteCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/paste", "Paste copyed area", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.paste")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+        /** @var Copier $copier */
+        $copier = BuilderTools::getEditor(Editor::COPIER);
+        $copier->paste($sender);
+        $sender->sendMessage(BuilderTools::getPrefix()."§aCopied area successfully pasted!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Editor;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class RotateCommand
+ * @package buildertools\commands
+ */
+class RotateCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * RotateCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/rotate", "Rotate selected area", null, []);
+    }
+
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            return;
+        }
+
+        if(!$sender->hasPermission("bt.cmd.rotate")) {
+            $sender->sendMessage("§cYou do not have permissions to use this command.");
+            return;
+        }
+
+        /** @var Copier $copier */
+        $copier = BuilderTools::getEditor(Editor::COPIER);
+
+        $copier->addToRotate($sender);
+    }
+
+    /**
+     * @return Plugin|BuilderTools $plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Canceller;
+use czechpmdevs\buildertools\editors\Editor;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class UndoCommand
+ * @package buildertools\commands
+ */
+class UndoCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * UndoCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/undo", "Undo last BuilderTools actions", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return mixed|void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.undo")) {
+            $sender->sendMessage("§cYou do not have permissions to use this command!");
+            return;
+        }
+
+        /** @var Canceller $canceller */
+        $canceller = BuilderTools::getEditor(Editor::CANCELLER);
+        $result = $canceller->undo($sender);
+
+        if(!$result->error) $sender->sendMessage(BuilderTools::getPrefix()."§aStep was cancelled!");
+    }
+
+    /**
+     * @return Plugin&BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Canceller;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\object\EditorResult;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class UndoCommand
+ * @package buildertools\commands
+ */
+class RedoCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * UndoCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/redo", "Redo last BuilderTools actions", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return mixed|void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.undo")) {
+            $sender->sendMessage("§cYou do not have permissions to use this command!");
+            return;
+        }
+
+        /** @var Canceller $canceller */
+        $canceller = BuilderTools::getEditor(Editor::CANCELLER);
+
+        /** @var EditorResult $result */
+        $result = $canceller->redo($sender);
+
+        if(!$result->error) $sender->sendMessage(BuilderTools::getPrefix()."§aUndo was cancelled!");
+    }
+
+    /**
+     * @return Plugin&BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\level\generator\object\BirchTree;
+use pocketmine\level\generator\object\JungleTree;
+use pocketmine\level\generator\object\OakTree;
+use pocketmine\level\generator\object\SpruceTree;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+use pocketmine\utils\Random;
+
+/**
+ * Class TreeCommand
+ * @package buildertools\commands
+ */
+class TreeCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * TreeCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/tree", "Place tree object", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return mixed|void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.tree")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+
+        if(!isset($args[0])) {
+            $sender->sendMessage("§cUsage: §7/tree <list|treeType>");
+            return;
+        }
+
+        if(strtolower($args[0]) == "list") {
+            $sender->sendMessage(BuilderTools::getPrefix()."§aTree list: Birch, Oak, Jungle, Spruce");
+            return;
+        }
+
+        $object = null;
+
+        switch (strtolower($args[0])) {
+            case "oak":
+                $object = new OakTree;
+                break;
+            case "birch":
+                $object = new BirchTree;
+                break;
+            case "jungle":
+                $object = new JungleTree;
+                break;
+            case "spruce":
+                $object = new SpruceTree;
+                break;
+        }
+
+        if($object === null) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cObject {$args[0]} does not found!");
+            return;
+        }
+
+        $object->placeObject($sender->getLevel(), (int)$sender->getX(), (int)$sender->getY(), (int)$sender->getZ(), new Random($sender->getLevel()->getSeed()));
+        $sender->sendMessage(BuilderTools::getPrefix()."§aObject {$args[0]} placed!");
+    }
+
+    /**
+     * @return BuilderTools $plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Editor;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class FlipCommand
+ * @package buildertools\commands
+ */
+class FlipCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * FlipCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/flip", "Flip selected area", null, []);
+    }
+
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            return;
+        }
+
+        if(!$sender->hasPermission("bt.cmd.flip")) {
+            $sender->sendMessage("§cYou do not have permissions to use this command.");
+            return;
+        }
+
+        /** @var Copier $copier */
+        $copier = BuilderTools::getEditor(Editor::COPIER);
+        $copier->flip($sender);
+    }
+
+    /**
+     * @return Plugin|BuilderTools $plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\Fixer;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class FixCommand
+ * @package buildertools\commands
+ */
+class FixCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * FixCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/fix", "Fix selected area");
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return mixed|void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+
+        if(!$sender->hasPermission("bt.cmd.fix")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+
+        $firstPos = Selectors::getPosition($sender, 1);
+        $secondPos = Selectors::getPosition($sender, 2);
+
+        if($firstPos->getLevel()->getName() != $secondPos->getLevel()->getName()) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cPositions must be in same level");
+            return;
+        }
+
+        /** @var Fixer $fixer */
+        $fixer = BuilderTools::getEditor(Editor::FIXER);
+        $fixer->fix($firstPos->getX(), $firstPos->getY(), $firstPos->getZ(), $secondPos->getX(), $secondPos->getY(), $secondPos->getZ(), $sender->getLevel(), $sender);
+    }
+
+    /**
+     * @return Plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\object\EditorResult;
+use czechpmdevs\buildertools\editors\Printer;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\item\Item;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class CubeCommand
+ * @package buildertools\commands
+ */
+class CubeCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * CubeCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/cube", "Create cube", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.cube")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!isset($args[0])) {
+            $sender->sendMessage("§7Usage: §c//cube <id1:dmg1,id2:dmg2,...> <radius>");
+            return;
+        }
+        $radius = isset($args[1]) ? $args[1] : 5;
+
+        /** @var Printer $printer */
+        $printer = BuilderTools::getEditor(Editor::PRINTER);
+        /** @var EditorResult $result */
+        $result = $printer->makeCube($sender, $sender->asPosition(), $radius, (string)$args[0]);
+        $sender->sendMessage(BuilderTools::getPrefix()."§aCube created in ".(string)round($result->time, 2)." (".(string)$result->countBlocks." block changed)!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $plugin
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class MergeCommand
+ * @package buildertools\commands
+ */
+class MergeCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * PasteCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/merge", "Merge copied area", null, []);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.paste")) {
+            $sender->sendMessage("§cYou do have not permissions to use this command!");
+            return;
+        }
+        if(!Selectors::isSelected(1, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the first position.");
+            return;
+        }
+        if(!Selectors::isSelected(2, $sender)) {
+            $sender->sendMessage(BuilderTools::getPrefix()."§cFirst you need to select the second position.");
+            return;
+        }
+        /** @var Copier $copier */
+        $copier = BuilderTools::getEditor(Editor::COPIER);
+        $copier->merge($sender);
+        $sender->sendMessage(BuilderTools::getPrefix()."§aCopied area successfully merged!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\commands;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\command\Command;
+use pocketmine\command\CommandSender;
+use pocketmine\command\PluginIdentifiableCommand;
+use pocketmine\Player;
+use pocketmine\plugin\Plugin;
+
+/**
+ * Class BlockInfoCommand
+ * @package czechpmdevs\buildertools\commands
+ */
+class BlockInfoCommand extends Command implements PluginIdentifiableCommand {
+
+    /**
+     * ReplaceCommand constructor.
+     */
+    public function __construct() {
+        parent::__construct("/blockinfo", "Switch block info mode", null, ["/bi"]);
+    }
+
+    /**
+     * @param CommandSender $sender
+     * @param string $commandLabel
+     * @param array $args
+     * @return void
+     */
+    public function execute(CommandSender $sender, string $commandLabel, array $args) {
+        if(!$sender instanceof Player) {
+            $sender->sendMessage("§cThis command can be used only in-game!");
+            return;
+        }
+        if(!$sender->hasPermission("bt.cmd.blockinfo")) {
+            $sender->sendMessage("§cYou do not have not permissions to use this command!");
+            return;
+        }
+
+        Selectors::switchBlockInfoSelector($sender);
+        $sender->sendMessage(BuilderTools::getPrefix() . "Block info mode turned " . (Selectors::isBlockInfoPlayer($sender) ? "on" : "off") . "!");
+    }
+
+    /**
+     * @return Plugin|BuilderTools $builderTools
+     */
+    public function getPlugin(): Plugin {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\event\listener;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\Copier;
+use czechpmdevs\buildertools\editors\Editor;
+use czechpmdevs\buildertools\editors\Printer;
+use czechpmdevs\buildertools\Selectors;
+use pocketmine\event\block\BlockBreakEvent;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerChatEvent;
+use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\level\Position;
+use pocketmine\network\mcpe\protocol\TextPacket;
+use pocketmine\Player;
+
+/**
+ * Class EventListener
+ * @package buildertools\events\listener
+ */
+class EventListener implements Listener {
+
+    /** @var int[] $directionCheck */
+    public $directionCheck = [];
+
+    /** @var array $toRotate */
+    public $toRotate = [];
+
+    /** @var array $rotateCache */
+    public $rotateCache = [];
+
+    /** @var array $wandClicks */
+    private $wandClicks = [];
+
+    /** @var array $blockInfoClicks */
+    private $blockInfoClicks = [];
+
+    /**
+     * @param PlayerMoveEvent $event
+     */
+    public function onDirectionChange(PlayerMoveEvent $event) {
+        if(count($this->directionCheck) == 0) {
+            return;
+        }
+
+        $player = $event->getPlayer();
+
+        if(!isset($this->directionCheck[$player->getName()])) {
+            return;
+        }
+
+        $direction = (int)$this->directionCheck[$player->getName()];
+
+        if($direction != $player->getDirection()) {
+            if(isset($this->rotateCache[$player->getName()])) {
+                if($this->rotateCache[$player->getName()] == $event->getPlayer()->getDirection()) {
+                    return;
+                }
+            }
+            $this->rotateCache[$player->getName()] = $player->getDirection();
+            $player->sendMessage(BuilderTools::getPrefix()."If you want to rotate object changing direction from {$direction} to {$player->getDirection()} type into the chat §bconfirm§a.");
+            $this->toRotate[$player->getName()] = [$player, $direction, $player->getDirection()];
+            return;
+        }
+
+
+    }
+
+    /**
+     * @param PlayerChatEvent $event
+     */
+    public function onChatConfirm(PlayerChatEvent $event) {
+        if(count($this->toRotate) == 0) {
+            return;
+        }
+
+        $player = $event->getPlayer();
+        $msg = explode(" ", strtolower($event->getMessage()))[0];
+
+
+        if(!isset($this->toRotate[$player->getName()])) {
+            return;
+        }
+
+        if(!in_array($msg, ["confirm", "cancel"])) {
+            $player->sendMessage(BuilderTools::getPrefix()."You are rotating object. If you want to cancel it, type into the chat§b cancel§a.");
+            $event->setCancelled(true);
+            return;
+        }
+
+        if($msg == "cancel") {
+            unset($this->toRotate[$player->getName()]);
+            unset($this->directionCheck[$player->getName()]);
+            $player->sendMessage(BuilderTools::getPrefix()."You are cancelled rotating an object.");
+            $event->setCancelled(true);
+            return;
+        }
+
+        $player->sendMessage(BuilderTools::getPrefix()."§aRotating selected area...");
+        $event->setCancelled(true);
+
+        $toRotate = $this->toRotate[$player->getName()];
+
+        unset($this->toRotate[$player->getName()]);
+        unset($this->directionCheck[$player->getName()]);
+
+        /** @var Copier $copier */
+        $copier = BuilderTools::getEditor(Editor::COPIER);
+        $copier->rotate($player, $toRotate[1], $toRotate[2]);
+
+    }
+
+    /**
+     * @param PlayerInteractEvent $event
+     */
+    public function onAirClick(PlayerInteractEvent $event) {
+        if(!Selectors::isDrawingPlayer($player = $event->getPlayer())) return;
+        $position = $player->getTargetBlock(64)->asPosition();
+        $printer = BuilderTools::getEditor(Editor::PRINTER);
+        if($printer instanceof Printer) {
+            $printer->draw($player, $position, $player->getInventory()->getItemInHand()->getBlock(), Selectors::getDrawingPlayerBrush($player), Selectors::getDrawingPlayerMode($player), Selectors::getDrawingPlayerFall($player));
+        }
+        $event->setCancelled(true);
+    }
+
+    /**
+     * @param BlockBreakEvent $event
+     */
+    public function onBlockBreak(BlockBreakEvent $event) {
+        if(!Selectors::isWandSelector($player = $event->getPlayer())) return;
+        Selectors::addSelector($player, 1, $position = new Position(intval($event->getBlock()->getX()), intval($event->getBlock()->getY()), intval($event->getBlock()->getZ()), $player->getLevel()));
+        $player->sendMessage(BuilderTools::getPrefix()."§aSelected first position at {$position->getX()}, {$position->getY()}, {$position->getZ()}");
+        $event->setCancelled(true);
+    }
+
+    /**
+     * @param PlayerInteractEvent $event
+     */
+    public function onBlockTouch(PlayerInteractEvent $event) {
+        if($event->getAction() !== PlayerInteractEvent::RIGHT_CLICK_BLOCK) return;
+        if(Selectors::isWandSelector($player = $event->getPlayer())) {
+            // antispam ._.
+            if(isset($this->wandClicks[$player->getName()]) && microtime(true)-$this->wandClicks[$player->getName()] < 0.5) return;
+            $this->wandClicks[$player->getName()] = microtime(true);
+            Selectors::addSelector($player, 2, $position = new Position(intval($event->getBlock()->getX()), intval($event->getBlock()->getY()), intval($event->getBlock()->getZ()), $player->getLevel()));
+            $player->sendMessage(BuilderTools::getPrefix()."§aSelected second position at {$position->getX()}, {$position->getY()}, {$position->getZ()}");
+            $event->setCancelled(true);
+        }
+        if(Selectors::isBlockInfoPlayer($player = $event->getPlayer())) {
+            // antispam ._.
+            if(isset($this->blockInfoClicks[$player->getName()]) && microtime(true)-$this->blockInfoClicks[$player->getName()] < 0.5) return;
+            $this->blockInfoClicks[$player->getName()] = microtime(true);
+            $block = $event->getBlock();
+            $player->sendTip("§aID: §7" . (string)$block->getId(). ":" . (string)$block->getDamage() . "\n" .
+            "§aName: §7" . (string)$block->getName() . "\n" .
+            "§aPosition: §7" . (string)$block->getX() . ", " . (string)$block->getY() . ", " . (string)$block->getZ() . "\n" .
+            "§aLevel: §7" . $block->getLevel()->getName());
+            $event->setCancelled(true);
+        }
+    }
+
+    /**
+     * @return BuilderTools $builderTools
+     */
+    public function getPlugin():BuilderTools {
+        return BuilderTools::getInstance();
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use czechpmdevs\buildertools\editors\object\EditorResult;
+use pocketmine\block\Block;
+use pocketmine\entity\Entity;
+use pocketmine\level\Level;
+use pocketmine\level\utils\SubChunkIteratorManager;
+use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\FullChunkDataPacket;
+use pocketmine\Player;
+use raklib\protocol\EncapsulatedPacket;
+
+/**
+ * Class Filler
+ * @package buildertools\editors
+ */
+class Filler extends Editor {
+
+    /**
+     * @param Vector3 $pos1
+     * @param Vector3 $pos2
+     * @param Level $level
+     * @param string $blockArgs
+     * @return BlockList $blocks
+     */
+    public function prepareFill(Vector3 $pos1, Vector3 $pos2, Level $level, string $blockArgs): BlockList {
+        $blockList = new BlockList;
+        $blockList->setLevel($level);
+
+        for($x = min($pos1->getX(), $pos2->getX()); $x <= max($pos1->getX(), $pos2->getX()); $x++) {
+            for($y = min($pos1->getY(), $pos2->getY()); $y <= max($pos1->getY(), $pos2->getY()); $y++) {
+                for($z = min($pos1->getZ(), $pos2->getZ()); $z <= max($pos1->getZ(), $pos2->getZ()); $z++) {
+                    $blockList->addBlock(new Vector3($x, $y, $z), $this->getBlockFromString($blockArgs));
+                }
+            }
+        }
+
+        return $blockList;
+    }
+
+
+    /**
+     * @param Player $player
+     * @param BlockList $blockList
+     * @param bool[] $settings
+     *
+     * @return EditorResult
+     */
+    public function fill(Player $player, BlockList $blockList, array $settings = []): EditorResult {
+        $startTime = microtime(true);
+        /** @var  $blocks */
+        $blocks = $blockList->getAll();
+
+        /** @var bool $fastFill */
+        $fastFill = true;
+        /** @var bool $saveUndo */
+        $saveUndo = true;
+        /** @var bool $saveRedo */
+        $saveRedo = false;
+
+        if(isset($settings["fastFill"]) && is_bool($settings["fastFill"])) $fastFill = $settings["fastFill"];
+        if(isset($settings["saveUndo"]) && is_bool($settings["saveUndo"])) $saveUndo = $settings["saveUndo"];
+        if(isset($settings["saveRedo"]) && is_bool($settings["saveRedo"])) $saveRedo = $settings["saveRedo"];
+
+        $undoList = new BlockList;
+        $redoList = new BlockList;
+
+        if($saveUndo) $undoList->setLevel($blockList->getLevel());
+        if($saveRedo) $redoList->setLevel($blockList->getLevel());
+
+        /*
+        if(!$fastFill) {
+            /**
+             * @var Block $block
+             *./
+            foreach ($blocks as $block) {
+                if($saveUndo) {
+                    $undoList->addBlock($block->asVector3(), $block->getLevel()->getBlock($block->asVector3()));
+                }
+                if($saveRedo) {
+                    $redoList->addBlock($block->asVector3(), $block->getLevel()->getBlock($block->asVector3()));
+                }
+                $block->getLevel()->setBlock($block->asVector3(), $block, false, false);
+            }
+
+            /** @var Canceller $canceller *./
+            $canceller = BuilderTools::getEditor(static::CANCELLER);
+            $canceller->addStep($player, $undoList);
+
+            return new EditorResult(count($blocks), microtime(true)-$startTime);
+        }*/
+
+        $iterator = new SubChunkIteratorManager($blockList->getLevel());
+
+        /** @var int $minX */
+        $minX = null;
+        /** @var int $maxX */
+        $maxX = null;
+        /** @var int $minZ */
+        $minZ = null;
+        /** @var int $maxZ */
+        $maxZ = null;
+
+        /**
+         * @param Level $level
+         * @param int $x1
+         * @param int $z1
+         * @param $x2
+         * @param $z2
+         */
+        $reloadChunks = function (Level $level, int $x1, int $z1, int $x2, int $z2) {
+            for($x = $x1 >> 4; $x <= $x2 >> 4; $x++) {
+                for($z = $z1 >> 4; $z <= $z2 >> 4; $z++) {
+                    $tiles = $level->getChunkTiles($x, $z);
+                    $entities = $level->getChunkEntities($x, $z);
+
+                    $chunk = $level->getChunk($x, $z);
+                    $level->setChunk($x, $z, $chunk);
+
+                    foreach ($tiles as $tile) {
+                        $tile->closed = false;
+                        $tile->setLevel($level);
+                        $level->addTile($tile);
+                    }
+
+
+                    foreach ($level->getChunkLoaders($x, $z) as $chunkLoader) {
+                        if($chunkLoader instanceof Player) {
+                            $pk = new FullChunkDataPacket();
+                            $pk->chunkX = $x;
+                            $pk->chunkZ = $z;
+                            $pk->data = $chunk->networkSerialize();
+                            $chunkLoader->dataPacket($pk);
+                        }
+
+                        $level->clearChunkCache($x, $z);
+                    }
+                }
+            }
+        };
+
+        foreach ($blocks as $block) {
+            // min and max positions
+            if($minX === null || $block->getX() < $minX) $minX = $block->getX();
+            if($minZ === null || $block->getZ() < $minZ) $minZ = $block->getZ();
+            if($maxX === null || $block->getX() > $maxX) $maxX = $block->getX();
+            if($maxZ === null || $block->getZ() > $maxZ) $maxZ = $block->getZ();
+
+            $iterator->moveTo((int)$block->getX(), (int)$block->getY(), (int)$block->getZ());
+            if($saveUndo) $undoList->addBlock($block->asVector3(), Block::get($iterator->currentSubChunk->getBlockId($block->getX() & 0x0f, $block->getY() & 0x0f, $block->getZ() & 0x0f), $iterator->currentSubChunk->getBlockData($block->getX() & 0x0f, $block->getY() & 0x0f, $block->getZ() & 0x0f)));
+            if($saveRedo) $redoList->addBlock($block->asVector3(), Block::get($iterator->currentSubChunk->getBlockId($block->getX() & 0x0f, $block->getY() & 0x0f, $block->getZ() & 0x0f), $iterator->currentSubChunk->getBlockData($block->getX() & 0x0f, $block->getY() & 0x0f, $block->getZ() & 0x0f)));
+            $iterator->currentSubChunk->setBlock($block->getX() & 0x0f, $block->getY() & 0x0f, $block->getZ() & 0x0f, $block->getId(), $block->getDamage());
+        }
+
+        $reloadChunks($blockList->getLevel(), (int)$minX, (int)$minZ, (int)$maxX, (int)$maxZ);
+
+        if($saveUndo) {
+            /** @var Canceller $canceller */
+            $canceller = BuilderTools::getEditor(static::CANCELLER);
+            $canceller->addStep($player, $undoList);
+        }
+
+        if($saveRedo) {
+            /** @var Canceller $canceller */
+            $canceller = BuilderTools::getEditor(static::CANCELLER);
+            $canceller->addRedo($player, $redoList);
+        }
+
+
+        return new EditorResult(count($blocks), microtime(true)-$startTime);
+    }
+
+
+
+    public function getName(): string {
+        return "Filler";
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use pocketmine\block\Block;
+use pocketmine\item\Item;
+
+/**
+ * Class Editor
+ * @package buildertools\editors
+ */
+abstract class Editor {
+
+    const CANCELLER = "Canceller";
+    const COPIER = "Copier";
+    const DECORATOR = "Decorator";
+    const FILLER = "Filler";
+    const FIXER = "Fixer";
+    const NATURALIZER = "Naturalizer";
+    const PRINTER = "Printer";
+    const REPLACEMENT = "Replacement";
+
+    /**
+     * @return string
+     */
+    abstract function getName(): string;
+
+    /**
+     * @return BuilderTools
+     */
+    public function getPlugin(): BuilderTools {
+        return BuilderTools::getInstance();
+    }
+
+    /**
+     * @param string $string
+     * @param int $id
+     *
+     * @return bool
+     */
+    public function isBlockInString(string $string, int $id): bool {
+        $itemArgs = explode(",", $string);
+
+        $items = [];
+        foreach ($itemArgs as $itemString) {
+            // Item::fromString() throws exception
+            try {
+                 $block = Item::fromString($itemString)->getBlock();
+                 $items[] =  $block->getId();
+            }
+            catch (\Exception $exception) {}
+        }
+
+        return (bool)in_array($id, $items);
+    }
+
+    /**
+     * @param string $string
+     * @return Block $block
+     */
+    public function getBlockFromString(string $string): Block {
+        $itemArgs = explode(",", $string);
+
+        /** @var Item $item */
+        $item = null;
+        try {
+            $item = Item::fromString($itemArgs[array_rand($itemArgs, 1)]);
+        }
+        catch (\Exception $exception) {
+            $item = Item::get(Item::AIR);
+        }
+
+        if(!$item instanceof Item) return Block::get(Block::AIR);
+
+        /** @var Block $block */
+        $block = null;
+        try {
+            $block = $item->getBlock();
+        }
+        catch (\Exception $exception) {
+            $block = Block::get(Block::AIR);
+        }
+
+        if(!$block instanceof Block) {
+            return Block::get(Block::AIR);
+        }
+
+        return $block;
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use czechpmdevs\buildertools\editors\object\EditorResult;
+use czechpmdevs\buildertools\utils\Math;
+use pocketmine\block\Block;
+use pocketmine\level\Position;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
+/**
+ * Class Printer
+ * @package buildertools\editors
+ */
+class Printer extends Editor {
+
+    public const CUBE = 0;
+    public const SPHERE = 1;
+
+    /**
+     * @param Player $player
+     * @param Position $center
+     * @param Block $block
+     * @param int $brush
+     * @param int $mode
+     * @param bool $fall
+     */
+    public function draw(Player $player, Position $center, Block $block, int $brush = 4, int $mode = 0, bool $fall = false) {
+        $undoList = new BlockList;
+        $center = Math::roundPosition($center);
+        switch ($mode) {
+            case self::CUBE:
+                for ($x = $center->getX()-$brush; $x <= $center->getX()+$brush; $x++) {
+                    for ($y = $center->getY()-$brush; $y <= $center->getY()+$brush; $y++) {
+                        for ($z = $center->getZ()-$brush; $z <= $center->getZ()+$brush; $z++) {
+                            if($fall) {
+                                $finalPos = $this->throwBlock(new Position($x, $y, $z, $center->getLevel()), $block);
+                                $undoList->addBlock($finalPos, $block);
+                            } else {
+                                if($y > 0) {
+                                    $center->getLevel()->setBlockIdAt($x, $y, $z, $block->getId());
+                                    $center->getLevel()->setBlockDataAt($x, $y, $z, $block->getDamage());
+                                    $undoList->addBlock(new Vector3($x, $y, $z), $block);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+
+            case self::SPHERE:
+                for ($x = $center->getX()-$brush; $x <= $center->getX()+$brush; $x++) {
+                    $xsqr = ($center->getX()-$x) * ($center->getX()-$x);
+                    for ($y = $center->getY()-$brush; $y <= $center->getY()+$brush; $y++) {
+                        $ysqr = ($center->getY()-$y) * ($center->getY()-$y);
+                        for ($z = $center->getZ()-$brush; $z <= $center->getZ()+$brush; $z++) {
+                            $zsqr = ($center->getZ()-$z) * ($center->getZ()-$z);
+                            if(($xsqr + $ysqr + $zsqr) <= ($brush*$brush)) {
+                                if($fall) {
+                                    $finalPos = $this->throwBlock(new Position($x, $y, $z, $center->getLevel()), $block);
+                                    $undoList->addBlock($finalPos, $block);
+                                }
+                                else {
+                                    if($y > 0) {
+                                        $center->getLevel()->setBlockIdAt($x, $y, $z, $block->getId());
+                                        $center->getLevel()->setBlockDataAt($x, $y, $z, $block->getDamage());
+                                        $undoList->addBlock(new Vector3($x, $y, $z), $block);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+        }
+    }
+
+    /**
+     * @param Position $position
+     * @param Block $block
+     *
+     * @return Vector3 $pos
+     */
+    private function throwBlock(Position $position, Block $block): Vector3 {
+        $level = $position->getLevel();
+
+        $x = $position->getX();
+        $y = $position->getY();
+        $z = $position->getZ();
+
+        $finalY = $y;
+
+        for($a = $y+1; $a > 0 && $level->getBlockIdAt($x, $a-1, $z) == Block::AIR; $a--) {
+            $finalY = $a-1;
+        }
+
+        $level->setBlockIdAt($x, $finalY, $z, $block->getId());
+        $level->setBlockDataAt($x, $finalY, $z, $block->getDamage());
+        return new Vector3($x, $finalY, $z);
+    }
+
+    /**
+     * @param Player $player
+     * @param Position $center
+     * @param int $radius
+     * @param $blocks
+     *
+     * @return EditorResult
+     */
+    public function makeSphere(Player $player, Position $center, int $radius, $blocks): EditorResult {
+        $center = Math::roundPosition($center);
+        $blockList = new BlockList();
+        $blockList->setLevel($center->getLevel());
+        for($x = $center->getX()-$radius; $x < $center->getX()+$radius; $x++) {
+            $xsqr = ($center->getX()-$x) * ($center->getX()-$x);
+            for($y = $center->getY()-$radius; $y < $center->getY()+$radius; $y++) {
+                $ysqr = ($center->getY()-$y) * ($center->getY()-$y);
+                for($z = $center->getZ()-$radius; $z < $center->getZ()+$radius; $z++) {
+                    $zsqr = ($center->getZ()-$z) * ($center->getZ()-$z);
+                    if(($xsqr + $ysqr + $zsqr) <= ($radius*$radius)) {
+                        $blockList->addBlock(new Vector3($x, $y, $z), $this->getBlockFromString($blocks));
+                    }
+                }
+            }
+        }
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        return $filler->fill($player, $blockList, ["saveUndo" => true]);
+    }
+
+    /**
+     * @param Player $player
+     * @param Position $center
+     * @param int $radius
+     * @param $blocks
+     *
+     * @return EditorResult
+     */
+    public function makeCube(Player $player, Position $center, int $radius, $blocks): EditorResult {
+        $center = Math::roundPosition($center);
+        $blockList = new BlockList();
+        $blockList->setLevel($center->getLevel());
+        for($x = $center->getX()-$radius; $x < $center->getX()+$radius; $x++) {
+            for($y = $center->getY()-$radius; $y < $center->getY()+$radius; $y++) {
+                for($z = $center->getZ()-$radius; $z < $center->getZ()+$radius; $z++) {
+                    $blockList->addBlock(new Vector3($x, $y, $z), $this->getBlockFromString($blocks));
+                }
+            }
+        }
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        return $filler->fill($player, $blockList, ["saveUndo" => true]);
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string {
+        return "Printer";
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use pocketmine\block\Block;
+use pocketmine\event\Cancellable;
+use pocketmine\item\Item;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
+/**
+ * Class Replacement
+ * @package buildertools\editors
+ */
+class Replacement extends Editor {
+
+    /**
+     * @param Vector3 $pos1
+     * @param Vector3 $pos2
+     * @param Level $level
+     *
+     * Blocks that will replaced
+     * @param string $blocks
+     *
+     * Blocks that will placed
+     * @param string $replace
+     *
+     * @return BlockList
+     */
+    public function prepareReplace(Vector3 $pos1, Vector3 $pos2, Level $level, string $blocks, string $replace): BlockList {
+        $blockList = new BlockList;
+        $blockList->setLevel($level);
+
+        for($x = min($pos1->getX(), $pos2->getX()); $x <= max($pos1->getX(), $pos2->getX()); $x++) {
+            for($y = min($pos1->getY(), $pos2->getY()); $y <= max($pos1->getY(), $pos2->getY()); $y++) {
+                for($z = min($pos1->getZ(), $pos2->getZ()); $z <= max($pos1->getZ(), $pos2->getZ()); $z++) {
+                    if($this->isBlockInString($blocks, $level->getBlockIdAt($x, $y, $z))) {
+                        $blockList->addBlock(new Vector3($x, $y, $z), $this->getBlockFromString($replace));
+                    }
+                }
+            }
+        }
+
+        return $blockList;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string {
+        return "Replacement";
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use pocketmine\block\Block;
+use pocketmine\level\Level;
+use pocketmine\math\Vector2;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
+/**
+ * Class Naturalizer
+ * @package buildertools\editors
+ */
+class Naturalizer extends Editor {
+
+    /** @var BlockList $undo */
+    protected $undo;
+
+    public function __construct() {
+        $this->undo = new BlockList();
+    }
+
+    /**
+     * @param int $x1
+     * @param int $y1
+     * @param int $z1
+     * @param int $x2
+     * @param int $y2
+     * @param int $z2
+     * @param Level $level
+     * @param Player $player
+     */
+    public function naturalize(int $x1, int $y1, int $z1, int $x2, int $y2, int $z2, Level $level, Player $player) {
+        $list = new BlockList();
+        $list->saveBlockMap(true);
+        $list->setLevel($level);
+
+        for($x = min($x1, $x2); $x <= max($x1, $x2); $x++) {
+            for($z = min($z1, $z2); $z <= max($z1, $z2); $z++) {
+                $this->fix($list, new Vector2($x, $z), (int)min($y1, $y2), (int)max($y1, $y2), $level);
+            }
+        }
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        $filler->fill($player, $list);
+    }
+
+    /**
+     * @param BlockList $list
+     * @param Vector2 $vector2
+     * @param Level $level
+     * @param int $minY
+     * @param int $maxY
+     */
+    private function fix(BlockList $list, Vector2 $vector2, int $minY, int $maxY, Level $level) {
+        $x = (int)$vector2->getX();
+        $z = (int)$vector2->getY();
+
+        $blockY = null;
+        for($y = $minY; $y < $maxY; $y++) {
+            if($level->getBlockIdAt($x, $y, $z) !== Block::AIR && ($blockY === null || $blockY < $y)) {
+                $blockY = $y;
+            }
+        }
+
+        if($blockY === null) return;
+
+        for($y = $blockY; $y > $minY; $y--) {
+            switch ($blockY-$y) {
+                case 0:
+                    $list->addBlock(new Vector3($x, $y, $z), Block::get(Block::GRASS));
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                    $list->addBlock(new Vector3($x, $y, $z), Block::get(Block::DIRT));
+                    break;
+                case 4:
+                    $list->addBlock(new Vector3($x, $y, $z), (rand(0, 1) ? Block::get(Block::DIRT) : Block::get(Block::STONE)));
+                    break;
+                default:
+                    $list->addBlock(new Vector3($x, $y, $z), Block::get(Block::STONE));
+            }
+        }
+    }
+
+
+    /**
+     * @return string
+     */
+    public function getName(): string {
+        return "Naturalizer";
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors\object;
+
+use pocketmine\block\Block;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
+
+/**
+ * Class BlockList
+ * @package buildertools\editors\object
+ */
+class BlockList {
+
+    /** @var Block[] $blocks */
+    private $blocks = [];
+
+    /** @var Block[][][] $blockMap */
+    private $blockMap = [];
+
+    /** @var Level $level */
+    private $level;
+
+    /** @var bool $saveBlockMap */
+    private $saveBlockMap = false;
+
+    /**
+     * @param Vector3 $pos
+     * @param Block $block
+     */
+    public function addBlock(Vector3 $pos, Block $block) {
+        $block = clone $block;
+        $block->setComponents($pos->getX(), $pos->getY(), $pos->getZ());
+        $this->blocks[] = $block;
+        if($this->saveBlockMap) $this->blockMap[$pos->getX()][$pos->getY()][$pos->getZ()] = clone $block;
+    }
+
+    /**
+     * @param int $x
+     * @param int $y
+     * @param int $z
+     *
+     * @return bool
+     */
+    public function isAirAt(int $x, int $y, int $z): bool {
+        return $this->isVectorInBlockMap(new Vector3($x, $y, $z)) && $this->blockMap[$x][$y][$z]->getId() == 0;
+    }
+
+    /**
+     * @param int $x
+     * @param int $y
+     * @param int $z
+     *
+     * @return bool
+     */
+    public function isAirInLevel(int $x, int $y, int $z): bool {
+        return $this->isVectorInBlockMap(new Vector3($x, $y, $z)) && $this->blockMap[$x][$y][$z]->getId() == 0 && $this->level->getBlockIdAt($x, $y, $z) == 0;
+    }
+
+    /**
+     * @param Level $level
+     */
+    public function setLevel(Level $level) {
+        $this->level = $level;
+    }
+
+    /**
+     * @param bool $save
+     */
+    public function saveBlockMap(bool $save = true) {
+        $this->saveBlockMap = $save;
+    }
+
+    /**
+     * @return \pocketmine\block\Block[][][]
+     */
+    public function getBlockMap() {
+        return $this->blockMap;
+    }
+
+    /**
+     * @param Vector3 $vector3
+     * @return bool
+     */
+    public function isVectorInBlockMap(Vector3 $vector3): bool {
+        if(!isset($this->blocks[$vector3->getX()])) {
+            return false;
+        }
+        if(!isset($this->blocks[$vector3->getX()][$vector3->getY()])) {
+            return false;
+        }
+        if(!isset($this->blocks[$vector3->getX()][$vector3->getY()][$vector3->getZ()])) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @return Level $level
+     */
+    public function getLevel() {
+        return $this->level;
+    }
+
+    /**
+     * @return Block[] $blocks
+     */
+    public function getAll() {
+        return $this->blocks;
+    }
+
+    /**
+     * @param Block[] $blocks
+     */
+    public function setAll(array $blocks) {
+        $this->blocks = $blocks;
+    }
+
+    /**
+     * @param array $copyData
+     * @param bool $saveBlockMap
+     * @return BlockList
+     */
+    public static function fromCopyData(array $copyData, bool $saveBlockMap = false): BlockList {
+        $list = new BlockList;
+        $list->saveBlockMap($saveBlockMap);
+
+        /**
+         * @var Vector3 $vector3
+         * @var Block $block
+         */
+        foreach ($copyData as [$vector3, $block]) {
+            $list->addBlock($vector3, $block);
+        }
+
+        return $list;
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use czechpmdevs\buildertools\utils\Math;
+use pocketmine\block\Block;
+use pocketmine\item\Item;
+use pocketmine\level\format\EmptySubChunk;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
+/**
+ * Class Copier
+ * @package buildertools\editors
+ */
+class Copier extends Editor {
+
+    public const FLIP_DATA = [
+        // stairs
+        0 => [
+            0 => 4, 1 => 5, 2 => 6, 3 => 7, 4 => 0, 5 => 1, 6 => 2, 7 => 3
+        ],
+        // slabs
+        1 => [
+            0 => 8, 1 => 9, 2 => 10, 3 => 11, 4 => 12, 5 => 13, 6 => 14, 7 => 15, 8 => 0, 9 => 1, 10 => 2, 11 => 3, 12 => 4, 13 => 5, 14 => 6, 15 => 7
+        ]
+    ];
+
+    /** @var array $copyData */
+    public $copyData = [];
+
+    /**
+     * @return string $copier
+     */
+    public function getName(): string {
+        return "Copier";
+    }
+
+    /**
+     * @param int $x1
+     * @param int $y1
+     * @param int $z1
+     * @param int $x2
+     * @param int $y2
+     * @param int $z2
+     * @param Player $player
+     */
+    public function copy(int $x1, int $y1, int $z1, int $x2, int $y2, int $z2, Player $player) {
+        $this->copyData[$player->getName()] = [
+            "data" => [],
+            "center" => $player->asPosition(),
+            "direction" => $player->getDirection(),
+            "rotated" => false
+        ];
+        $count = 0;
+        for($x = min($x1, $x2); $x <= max($x1, $x2); $x++) {
+            for ($y = min($y1, $y2); $y <= max($y1, $y2); $y++) {
+                for ($z = min($z1, $z2); $z <= max($z1, $z2); $z++) {
+                    $this->copyData[$player->getName()]["data"][$count] = [($vec = Math::roundVector3(new Vector3($x, $y, $z)))->subtract(Math::roundVector3($player->asVector3())), $player->getLevel()->getBlock($vec)];
+                    $count++;
+                }
+            }
+        }
+        $player->sendMessage(BuilderTools::getPrefix()."§a{$count} blocks copied to clipboard! Use //paste to paste");
+    }
+
+    /**
+     * @param Player $player
+     */
+    public function merge(Player $player) {
+        if(!isset($this->copyData[$player->getName()])) {
+            $player->sendMessage(BuilderTools::getPrefix() . "§cUse //copy first!");
+            return;
+        }
+
+        /** @var array $blocks */
+        $blocks = $this->copyData[$player->getName()]["data"];
+
+        $list = new BlockList();
+        $list->setLevel($player->getLevel());
+
+        /**
+         * @var Vector3 $vec
+         * @var Block $block
+         */
+        foreach ($blocks as [$vec, $block]) {
+            if($player->getLevel()->getBlock($vec->add($player->asVector3()))->getId() == 0) {
+                $list->addBlock($vec->add($player->asVector3()), $block);
+            }
+        }
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        $filler->fill($player, $list);
+    }
+
+    /**
+     * @param Player $player
+     */
+    public function paste(Player $player) {
+        if(!isset($this->copyData[$player->getName()])) {
+            $player->sendMessage(BuilderTools::getPrefix()."§cUse //copy first!");
+            return;
+        }
+
+        /** @var array $blocks */
+        $blocks = $this->copyData[$player->getName()]["data"];
+
+        $list = new BlockList();
+        $list->setLevel($player->getLevel());
+
+        /**
+         * @var Vector3 $vec
+         * @var Block $block
+         */
+        foreach ($blocks as [$vec, $block]) {
+            $list->addBlock($vec->add($player->asVector3()), $block);
+        }
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        $filler->fill($player, $list);
+    }
+
+    /**
+     * @param Player $player
+     */
+    public function addToRotate(Player $player) {
+        if(!isset($this->copyData[$player->getName()])) {
+            $player->sendMessage(BuilderTools::getPrefix()."§cUse //copy first!");
+            return;
+        }
+        if($this->copyData[$player->getName()]["rotated"] == true) {
+            $player->sendMessage(BuilderTools::getPrefix()."§cSelected area is already rotated!");
+            return;
+        }
+        $player->sendMessage(BuilderTools::getPrefix()."Select direction to rotate moving.");
+        BuilderTools::getListener()->directionCheck[$player->getName()] = intval($player->getDirection());
+    }
+
+    /**
+     * @param Player $player
+     * @param int $fromDirection
+     * @param int $toDirection
+     */
+    public function rotate(Player $player, int $fromDirection, int $toDirection) {
+        $this->copyData[$player->getName()]["rotated"] = true;
+        $min = min($fromDirection, $toDirection);
+        $max = max($fromDirection, $toDirection);
+
+        if($min == $max) {
+            $player->sendMessage(BuilderTools::getPrefix()."§aSelected area rotated!");
+            return;
+        }
+
+        $id = "{$fromDirection}:{$toDirection}";
+
+        switch ($id) {
+            case "0:0":
+            case "1:1":
+            case "2:2":
+            case "3:3":
+                $player->sendMessage(BuilderTools::getPrefix()."§aSelected area rotated! ($id)");
+                break;
+
+            case "0:1":
+            case "1:2":
+            case "2:3":
+                /**
+                 * @var Vector3 $vec
+                 * @var Block $block
+                 */
+                foreach ($this->copyData[$player->getName()]["data"] as [$vec, $block]) {
+                    $vec->setComponents($vec->getZ(), $vec->getY(), $vec->getX());
+                }
+                $player->sendMessage(BuilderTools::getPrefix()."§aSelected area rotated! ($id)");
+                break;
+
+            case "0:2":
+            case "1:3":
+            case "2:0":
+            case "3:1":
+                /**
+                 * @var Vector3 $vec
+                 * @var Block $block
+                 */
+                foreach ($this->copyData[$player->getName()]["data"] as [$vec, $block]) {
+                    $vec->setComponents(-$vec->getX(), $vec->getY(), -$vec->getZ());
+                }
+                $player->sendMessage(BuilderTools::getPrefix()."§aSelected area rotated! ($id)");
+                break;
+
+            case "1:0":
+            case "2:1":
+            case "3:2":
+                /**
+                 * @var Vector3 $vec
+                 * @var Block $block
+                 */
+                foreach ($this->copyData[$player->getName()]["data"] as [$vec, $block]) {
+                    $vec->setComponents(-$vec->getX(), $vec->getY(), -$vec->getZ());
+                }
+                /**
+                 * @var Vector3 $vec
+                 * @var Block $block
+                 */
+                foreach ($this->copyData[$player->getName()]["data"] as [$vec, $block]) {
+                    $vec->setComponents($vec->getZ(), $vec->getY(), $vec->getX());
+                }
+
+                $player->sendMessage(BuilderTools::getPrefix()."§aSelected area rotated! ($id)");
+                break;
+
+            case "3:0":
+                /**
+                 * @var Vector3 $vec
+                 * @var Block $block
+                 */
+                foreach ($this->copyData[$player->getName()]["data"] as [$vec, $block]) {
+                    $vec->setComponents(-$vec->getX(), $vec->getY(), -$vec->getZ());
+                }
+                $player->sendMessage(BuilderTools::getPrefix()."§aSelected area rotated! ($id)");
+                break;
+        }
+    }
+
+    /**
+     * @param Player $player
+     *./
+    public function flip(Player $player) {
+        /**
+         * @var Vector3 $vec
+         * @var Block $block
+         *./
+        foreach ($this->copyData[$player->getName()]["data"] as [$vec, $block]) {
+            $vec->setComponents($vec->getX(), -$vec->getY(), $vec->getZ());
+            if(in_array($block->getId(), [Block::OAK_STAIRS, Block::COBBLESTONE_STAIRS, Block::ACACIA_STAIRS, Block::ACACIA_STAIRS, Block::DARK_OAK_STAIRS, Block::JUNGLE_STAIRS, Block::NETHER_BRICK_STAIRS, Block::PURPUR_STAIRS, Block::QUARTZ_STAIRS, Block::BRICK_STAIRS])) {
+                $block->setDamage(self::FLIP_DATA[0][$block->getDamage()]);
+            }
+            if(in_array($block->getId(), [Block::STONE_SLAB, Block::STONE_SLAB2, Block::WOODEN_SLAB])) {
+                $block->setDamage(self::FLIP_DATA[1][$block->getDamage()]);
+            }
+        }
+
+        $player->sendMessage(BuilderTools::getPrefix()."§aSelected area flipped!");
+    }*/
+
+    /**
+     * @param Player $player
+     */
+    public function flip(Player $player) {
+        $list = BlockList::fromCopyData($this->copyData[$player->getName()]["data"], true);
+        /** @var int $minY */
+        $minY = null;
+        /** @var int $maxY */
+        $maxY = null;
+
+        // b = block :D
+        foreach ($list->getBlockMap() as $x => $yzb) {
+            foreach ($yzb as $y => $zb) {
+                if($minY === null || $minY > $y) $minY = $y;
+                if($maxY === null || $maxY < $y) $maxY = $y;
+            }
+        }
+
+        $middleY = $minY+((int)round(($maxY-$minY)/2));
+        $middleExist = is_int(($maxY-$minY)/2);
+
+        $fillList = new BlockList();
+
+        foreach ($list->getAll() as $block) {
+            if($middleExist && $block->getY() == $middleY) {
+                $fillList->addBlock($block->asVector3(), $block);
+            }
+            elseif($block->getY() < $middleY) {
+                if($middleExist)
+                    $fillList->addBlock(new Vector3($block->getX(), $middleY+abs($middleY-$block->getY()), $block->getZ()), $block);
+                else
+                    $fillList->addBlock(new Vector3($block->getX(), ($middleY-1)+abs(($middleY-1)-$block->getY())+1, $block->getZ()), $block);
+            }
+            // děláno na rychlo
+            else {
+                if($middleExist)
+                    $fillList->addBlock(new Vector3($block->getX(), $middleY-abs($middleY-$block->getY()), $block->getZ()), $block);
+                else
+                    $fillList->addBlock(new Vector3($block->getX(), ($middleY-(abs($middleY-$block->getY()))-1), $block->getZ()), $block);
+            }
+        }
+
+        $fixBlock = function (Block $block): Block {
+            if(in_array($block->getId(), [Block::OAK_STAIRS, Block::COBBLESTONE_STAIRS, Block::ACACIA_STAIRS, Block::ACACIA_STAIRS, Block::DARK_OAK_STAIRS, Block::JUNGLE_STAIRS, Block::NETHER_BRICK_STAIRS, Block::PURPUR_STAIRS, Block::QUARTZ_STAIRS, Block::BRICK_STAIRS])) {
+                $block->setDamage(self::FLIP_DATA[0][$block->getDamage()]);
+            }
+            if(in_array($block->getId(), [Block::STONE_SLAB, Block::STONE_SLAB2, Block::WOODEN_SLAB])) {
+                $block->setDamage(self::FLIP_DATA[1][$block->getDamage()]);
+            }
+            return $block;
+        };
+
+        $this->copyData[$player->getName()]["data"] = [];
+        foreach ($fillList->getAll() as $block) {
+            $this->copyData[$player->getName()]["data"][] = [$block->asVector3(), $fixBlock($block)];
+        }
+
+        $player->sendMessage(BuilderTools::getPrefix() . "Selected area flipped!");
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use czechpmdevs\buildertools\editors\object\EditorResult;
+use pocketmine\Player;
+
+
+/**
+ * Class Canceller
+ * @package buildertools\editors
+ */
+class Canceller extends Editor {
+
+    /** @var BlockList[][] $undoData */
+    public $undoData = [];
+
+    /** @var BlockList[][] $redoData */
+    public $redoData = [];
+
+    /**
+     * @return string $name
+     */
+    public function getName(): string {
+        return "Canceller";
+    }
+
+    /**
+     * @param Player $player
+     * @param BlockList $blocks
+     */
+    public function addStep(Player $player, BlockList $blocks) {
+        $this->undoData[$player->getName()][] = $blocks;
+    }
+
+    /**
+     * @param Player $player
+     * @return EditorResult|null
+     */
+    public function undo(Player $player): EditorResult {
+        if(!isset($this->undoData[$player->getName()]) || count($this->undoData[$player->getName()]) == 0) {
+            $player->sendMessage(BuilderTools::getPrefix()."§cThere are not actions to undo!");
+            return new EditorResult(0, 0, true);
+        }
+
+        $blockList = array_pop($this->undoData[$player->getName()]);
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(static::FILLER);
+
+        return $filler->fill($player, $blockList, [
+            "saveUndo" => false,
+            "saveRedo" => true
+        ]);
+    }
+
+    /**
+     * @param Player $player
+     * @param BlockList $blocks
+     */
+    public function addRedo(Player $player, BlockList $blocks) {
+        $this->redoData[$player->getName()][] = $blocks;
+    }
+
+    /**
+     * @param Player $player
+     * @return EditorResult
+     */
+    public function redo(Player $player) {
+        if(!isset($this->redoData[$player->getName()]) || count($this->redoData[$player->getName()]) == 0) {
+            $player->sendMessage(BuilderTools::getPrefix()."§cThere are not actions to redo!");
+            return new EditorResult(0, 0, true);
+        }
+
+        $blockList = array_pop($this->redoData[$player->getName()]);
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(static::FILLER);
+        return $filler->fill($player, $blockList);
+    }
+}<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+declare(strict_types=1);
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use pocketmine\item\Item;
+use pocketmine\level\Position;
+use pocketmine\math\Vector3;
+
+/**
+ * Class Decorator
+ * @package worldfixer\editors
+ */
+class Decorator extends Editor {
+
+    /**
+     * @return string
+     */
+    public function getName(): string {
+        return "Decorator";
+    }
+
+    /**
+     * @param Position $center
+     * @param string $blocks
+     * @param int $radius
+     * @param int $percentage
+     * @param null $player
+     */
+    public function addDecoration(Position $center, string $blocks, int $radius, int $percentage, $player = null) {
+        $undo = [];
+        for ($x = $center->getX()-$radius; $x <= $center->getX()+$radius; $x++) {
+            for ($z = $center->getZ()-$radius; $z <= $center->getZ()+$radius; $z++) {
+                if(rand(1, 100) <= $percentage) {
+                    $y = $center->getY()+$radius;
+                    check:
+                    if($y > 0) {
+                        $vec = new Vector3($x, $y, $z);
+                        if($center->getLevel()->getBlock($vec)->getId() == 0) {
+                            $y--;
+                            goto check;
+                        }
+                        else {
+                            $blockArgs = explode(",", $blocks);
+                            array_push($undo, $center->getLevel()->getBlock($vec));
+                            $undo[] = $center->getLevel()->getBlock($vec->add(0, 1));
+                            $center->getLevel()->setBlock($vec->add(0, 1), Item::fromString($blockArgs[array_rand($blockArgs,1)])->getBlock(), true, true);
+                        }
+                    }
+                }
+            }
+        }
+
+        /** @var Canceller $canceller */
+        $canceller = BuilderTools::getEditor("Canceller");
+        $canceller->addStep($player, $undo);
+    }
+}
+<?php
+
+/**
+ * Copyright 2018 CzechPMDevs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+namespace czechpmdevs\buildertools\editors;
+
+use czechpmdevs\buildertools\BuilderTools;
+use czechpmdevs\buildertools\editors\object\BlockList;
+use pocketmine\block\Block;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+use pocketmine\tile\Banner;
+use pocketmine\tile\Bed;
+use pocketmine\tile\Chest;
+use pocketmine\tile\Sign;
+
+/**
+ * Class Fixer
+ * @package buildertools\editors
+ */
+class Fixer extends Editor {
+
+    const REMOVE_HEADS = false;
+    const FIX_TILES = true;
+
+    /**
+     * @var array $blocks
+     */
+    private static $blocks = [
+        158 => [Block::WOODEN_SLAB, 0],
+        125 => [Block::DOUBLE_WOODEN_SLAB, ""],
+        188 => [Block::FENCE, 0],
+        189 => [Block::FENCE, 1],
+        190 => [Block::FENCE, 2],
+        191 => [Block::FENCE, 3],
+        192 => [Block::FENCE, 4],
+        193 => [Block::FENCE, 5],
+        166 => [Block::INVISIBLE_BEDROCK, 0],
+        208 => [Block::GRASS_PATH, 0],
+        198 => [Block::END_ROD, 0],
+        126 => [Block::WOODEN_SLAB, ""],
+        95 => [Block::STAINED_GLASS, ""],
+        199 => [Block::CHORUS_PLANT, 0],
+        202 => [Block::PURPUR_BLOCK, 0],
+        251 => [Block::CONCRETE, 0],
+        204 => [Block::PURPUR_BLOCK, 0]
+    ];
+
+    /**
+     * @param $x1
+     * @param $y1
+     * @param $z1
+     * @param $x2
+     * @param $y2
+     * @param $z2
+     * @param Level $level
+     * @param Player $player
+     */
+    public function fix($x1, $y1, $z1, $x2, $y2, $z2, Level $level, Player $player) {
+        $blocks = self::$blocks;
+
+        if(self::REMOVE_HEADS) $blocks[Block::MOB_HEAD_BLOCK] = [Block::AIR, 0];
+
+        $blockList = new BlockList();
+        $blockList->setLevel($level);
+
+        for($x = min($x1, $x2); $x <= max($x1, $x2); $x++) {
+            for ($y = min($y1, $y2); $y <= max($y1, $y2); $y++) {
+                for ($z = min($z1, $z2); $z <= max($z1, $z2); $z++) {
+                    $id = $level->getBlockIdAt($x, $y, $z);
+
+                    if(self::FIX_TILES) {
+                        switch ($id) {
+                            case Block::CHEST:
+                                if($level->getTile(new Vector3($x, $y, $z)) === null)
+                                    $level->addTile(new Chest($level, Chest::createNBT(new Vector3($x, $y, $z))));
+                                break;
+                            case Block::SIGN_POST:
+                            case Block::WALL_SIGN:
+                                if($level->getTile(new Vector3($x, $y, $z)) === null)
+                                    $level->addTile(new Sign($level, Sign::createNBT(new Vector3($x, $y, $z))));
+                                break;
+                            case Block::BED_BLOCK:
+                                if($level->getTile(new Vector3($x, $y, $z)) === null)
+                                    $level->addTile(new Bed($level, Bed::createNBT(new Vector3($x, $y, $z))));
+                                break;
+                            case Block::STANDING_BANNER:
+                            case Block::WALL_BANNER:
+                                if($level->getTile(new Vector3($x, $y, $z)) === null)
+                                    $level->addTile(new Banner($level, Banner::createNBT(new Vector3($x, $y, $z))));
+                                break;
+                        }
+                    }
+
+
+                    if(isset($blocks[$id])) $blockList->addBlock(new Vector3($x, $y, $z), Block::get($blocks[$id][0], (is_int($blocks[$id][1]) ? $blocks[$id][1] : $level->getBlockDataAt($x, $y, $z))));
+                }
+            }
+        }
+
+        /** @var Filler $filler */
+        $filler = BuilderTools::getEditor(Editor::FILLER);
+        $result = $filler->fill($player, $blockList);
+
+        $player->sendMessage(BuilderTools::getPrefix()."Selected area successfully fixed! (".(string)($result->countBlocks)." blocks changed!)");
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string {
+        return "Fixer";
+    }
+}

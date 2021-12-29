@@ -1,0 +1,9 @@
+name: blockMCPE14
+main: blockMCPE14\blockMCPE14
+version: 3.5.4
+author: https://vk.com/ifreeze_dev
+api: 3.0.0
+load: POSTWORLD
+commands:
+ block:
+  description: "Block ~~~"

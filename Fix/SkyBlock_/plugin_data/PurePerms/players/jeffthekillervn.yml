@@ -1,0 +1,13 @@
+---
+userName: JeffTheKillerVN
+group: Guest
+permissions:
+  1: snoop.command
+  2: snoop.command
+  3: pocketmine.command.kick
+  4: pocketmine.command.banlist
+  5: snoop.command
+worlds: []
+time: -1
+expTime: -1
+...

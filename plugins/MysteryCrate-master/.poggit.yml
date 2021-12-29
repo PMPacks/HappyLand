@@ -1,0 +1,8 @@
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/JackMD/MysteryCrate
+branches:
+- master
+projects:
+  MysteryCrate:
+    path: ""
+    icon: meta/MysteryCrate.png
+...

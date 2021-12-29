@@ -1,0 +1,18 @@
+# StairSeat Configuration File
+
+# ----------------------------------------------------------------------------
+
+# Send tip when sit down
+# Replacement : @b = block where player try to seat name
+
+send-tip-when-sit: Tap jump to exit the seat
+
+# ----------------------------------------------------------------------------
+
+# Send message when trying to seat on stair which is already used
+# Replacement : @b = try to seat block's name
+#               @b = try to seat block's name
+
+tryto-sit-already-inuse: This seat is used by @p
+
+# ----------------------------------------------------------------------------

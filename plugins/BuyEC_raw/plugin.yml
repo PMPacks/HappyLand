@@ -1,0 +1,11 @@
+name: BuyEnchant
+main: buyec\Main
+version: 1.0
+api: 3.0.0
+commands:
+  buyec:
+    description: mua enchant (gia 2500xu mỗi cấp)
+  tokenenchant:
+    description: mua enchant
+  listec:
+    description: danh sach enchantment

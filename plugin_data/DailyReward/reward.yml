@@ -1,0 +1,21 @@
+---
+### day number
+1:
+  type: item
+  id: 260
+  meta: 0
+  count: 1
+  custom_name: "§bCúp Khi Join"
+  enchant:
+    ench_id: 1
+    ench_level: 1
+2:
+  type: item
+  id: 267
+  meta: 0
+  count: 1
+  custom_name: DailyReward
+  enchant:
+    ench_id: 2
+    ench_level: 1
+...

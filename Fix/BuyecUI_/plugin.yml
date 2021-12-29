@@ -1,0 +1,12 @@
+name: BuyEnchantUI
+version: 2.0
+main: BuyecUI\Main
+api:
+ - 3.0.0-ALPHA12
+ - 3.0.0
+ - 3.0.1
+author: Phuongaz
+commands:
+ buyecui:
+    description: "Buy Enchant Form"
+    default: true

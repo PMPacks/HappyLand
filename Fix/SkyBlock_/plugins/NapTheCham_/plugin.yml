@@ -1,0 +1,12 @@
+name: NapTheCham
+version: 1.0BETA
+api: 3.0.0
+author: phuongaz
+main: AuraSV\Main
+commands:
+ napthecham: 
+  description: Nạp Thẻ Chậm.
+  default: true
+ lichsunapthe:
+  description: Xem trạng thái thẻ cào đã nạp
+

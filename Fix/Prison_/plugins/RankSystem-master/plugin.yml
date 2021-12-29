@@ -1,0 +1,16 @@
+name: RankSystem
+author: Fludixx
+description: "RankSystem for Pocketmine"
+main: Fludixx\RankSystem\RankSystem
+version: 2.0
+api: [3.0.0]
+permissions:
+  rs.manage:
+    description: "Allows the User to create & manage Ranks"
+    default: op
+  rs.nick:
+    description: "Allows the User to nick themselfes"
+    default: op
+  rs.color:
+    description: "Allows the User to write with mcpe Color Codes"
+    default: op

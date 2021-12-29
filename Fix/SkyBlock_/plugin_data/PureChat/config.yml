@@ -1,0 +1,73 @@
+---
+version: 1.4.10-6
+default-factions-plugin: FactionsPro
+enable-multiworld-chat: false
+groups:
+  Guest:
+    chat: '§8[§r{fac_name}§r§8] §a|§b Người Chơi §a|§6 ↪ §f{display_name}§6 ↩ §c:
+      §f{msg}'
+    nametag: §l§c[§7Member§c]§r §f{display_name}
+    worlds: []
+  Owner:
+    chat: §7[§4§l{fac_name}§r§7] §c§l⚔§e QUỐC VƯƠNG §c⚔§b {display_name} §2↪ §6{msg}
+    nametag: §l§4⚔§e QUỐC VƯƠNG §4⚔§6 {display_name}
+    worlds: []
+  OP:
+    chat: §a§l[{fac_name}] §l§b•…§a✿§d❍ρ§a✿§b…• §f{display_name} §6•> §e{msg} §6<•
+    nametag: §l§l§b•…§a✿§d❍ρ§a✿§b…• §f{display_name}
+    worlds: []
+  Co-Owner:
+    nametag: '&8&l[Co-Owner]&f&r {display_name}'
+    chat: '&8&l[Co-Owner]&f&r {display_name} &7> {msg}'
+  Helper:
+    chat: §l§a[{fac_name}] §e•…❖§aHεɭρεɾ§e❖… §f{display_name} §6•> §b{msg}
+    nametag: §l§e•…❖§aHεɭρεɾ§e❖… §f{display_name}
+  Member:
+    chat: §a[{fac_name}] §b…•✌§a✪§fMember§a✪§b✌ §f{display_name} §6•> §f{msg}
+    nametag: §l§b…•✌§a✪§fMember§a✪§b✌ §f{display_name}
+  Builder:
+    chat: §l§a[{fac_name}] §a…✾§9Builder§a✾… §f{display_name} §6•> §b{msg}
+    nametag: §l§a…✾§9Builder§a✾… §f{display_name}
+  YT:
+    chat: §l§a[{fac_name}] ✌§fY❍ʊ§cζʊβℰℜ§a๖ۣۜ §f{display_name} §6•> §b{msg}
+    nametag: §l✌§fY❍ʊ§cζʊβℰℜ§a๖ۣۜ §f{display_name}
+  vip4:
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＩＶ§c ✧§6 {display_name} §a→§b {msg}
+    nametag: §l•°…§b۞§eVIP-IV§b۞§a…°• §f{display_name}
+  c:
+    nametag: '&8&l[c]&f&r {display_name}'
+    chat: '&8&l[c]&f&r {display_name} &7> {msg}'
+  VIP1:
+    nametag: §l§b☪ §6VIP §a☸§6 I§b ☪§d {display_name}
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＩ§c ✧§6 {display_name} §a→§b {msg}
+  VIP2:
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＩＩ§c ✧§6 {display_name} §a→§b {msg}
+    nametag: §l§b☪ §6VIP §a☸§6 II§b ☪§d {display_name}
+  VIP3:
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＩＩＩ§c ✧§6 {display_name} §a→§b {msg}
+    nametag: §l§b☪ §6VIP §a☸§6 III§b ☪§d {display_name}
+  VIP4:
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＩＶ§c ✧§6 {display_name} §a→§b {msg}
+    nametag: §l§b☪ §6VIP §a☸§6 IV§b ☪§d {display_name}
+  VIP5:
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＶ§c ✧§6 {display_name} §a→§b {msg}
+    nametag: §l§b☪ §6VIP §a☸§6 V§b ☪§d {display_name}
+  VIP6:
+    chat: §l§e[§r{fac_name}§r§e] §c✧ §bＶＩＰ§e☭ §bＶＩ§c ✧§6 {display_name} §a→§b {msg}
+    nametag: §l§b☪ §6VIP §a☸§6 VI§b ☪§d {display_name}
+  MemberS:
+    chat: §b•§r{fac_name}§r§b•§e§l ♣..»§dMember§e«..♣§r§a {display_name}§c→§6 {msg}
+    nametag: '&8&l[MemberS]&f&r {display_name}'
+  QuyToc:
+    chat: §8[§r{fac_name}§8] §a⚒§b§l Quý Tộc §r§a⚒§6 ↪ §d{display_name} §2⤴ §6{msg}
+    nametag: §l§a⚒§b Quý'sss Tộc §a⚒§6 {display_name}
+  TrieuDinh0:
+    nametag: '&8&l[TrieuDinh0]&f&r {display_name}'
+    chat: '&8&l[TrieuDinh0]&f&r {display_name} &7> {msg}'
+  rickkid:
+    chat: §7[§e{fac_name}§7]§l§d ⚜§b RICK KID§d ⚜§r§a {display_name}§e ↪§6 {msg}
+    nametag: §lRICK KID •§d {display_name}
+  Police:
+    chat: §7[§a{fac_name}§7]§b §l⤵§6 Cảnh Sát §b⤴§r§d {display_name}§a ↪§e {msg}
+    nametag: '&8&l[Police]&f&r {display_name}'
+...

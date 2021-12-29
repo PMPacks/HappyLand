@@ -1,0 +1,8 @@
+# TimeCommander
+#
+# Command: Command to execute
+# Time: Amount of time in ticks until command is executed
+
+Commands:
+  - Command: time set day
+    Time: 5000

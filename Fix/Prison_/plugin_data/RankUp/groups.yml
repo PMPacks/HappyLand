@@ -1,0 +1,169 @@
+---
+groups:
+  A:
+    entrance:
+    - setgroup {name} A
+    exit: []
+    perms: []
+    members:
+    - DarkKnightMCVN
+    - ZzzNarutozzZ159
+  B:
+    entrance:
+    - setgroup {name} B
+    exit: []
+    perms: []
+    members:
+      0: YokoDz
+      4: BossCreeper710
+  C:
+    entrance:
+    - setgroup {name} C
+    exit: []
+    perms: []
+    members:
+    - ZioJurryTM
+  D:
+    entrance:
+    - setgroup {name} D
+    exit: []
+    perms: []
+    members: []
+  E:
+    entrance:
+    - setgroup {name} E
+    exit: []
+    perms: []
+    members: []
+  F:
+    entrance:
+    - setgroup {name} F
+    exit: []
+    perms: []
+    members:
+    - RealDark666
+  G:
+    entrance:
+    - setgroup {name} G
+    exit: []
+    perms: []
+    members: []
+  H:
+    entrance:
+    - setgroup {name} H
+    exit: []
+    perms: []
+    members: []
+  I:
+    entrance:
+    - setgroup {name} I
+    exit: []
+    perms: []
+    members: []
+  J:
+    entrance:
+    - setgroup {name} J
+    exit: []
+    perms: []
+    members:
+    - HoangDzX
+  K:
+    entrance:
+    - setgroup {name} K
+    exit: []
+    perms: []
+    members: []
+  L:
+    entrance:
+    - setgroup {name} L
+    exit: []
+    perms: []
+    members: []
+  M:
+    entrance:
+    - setgroup {name} M
+    exit: []
+    perms: []
+    members:
+    - zenkinmurad654
+  "N":
+    entrance:
+    - setgroup {name} N
+    exit: []
+    perms: []
+    members: []
+  O:
+    entrance:
+    - setgroup {name} O
+    exit: []
+    perms: []
+    members: []
+  P:
+    entrance:
+    - setgroup {name} P
+    exit: []
+    perms: []
+    members: []
+  Q:
+    entrance:
+    - setgroup {name} Q
+    exit: []
+    perms: []
+    members: []
+  R:
+    entrance:
+    - setgroup {name} R
+    exit: []
+    perms: []
+    members: []
+  S:
+    entrance:
+    - setgroup {name} S
+    exit: []
+    perms: []
+    members: []
+  T:
+    entrance:
+    - setgroup {name} T
+    exit: []
+    perms: []
+    members: []
+  U:
+    entrance:
+    - setgroup {name} U
+    exit: []
+    perms: []
+    members: []
+  V:
+    entrance:
+    - setgroup {name} V
+    exit: []
+    perms: []
+    members: []
+  W:
+    entrance:
+    - setgroup {name} W
+    exit: []
+    perms: []
+    members: []
+  X:
+    entrance:
+    - setgroup {name} X
+    exit: []
+    perms: []
+    members: []
+  "Y":
+    entrance:
+    - setgroup {name} Y
+    exit: []
+    perms: []
+    members: []
+  Z:
+    entrance:
+    - setgroup {name} Z
+    exit: []
+    perms: []
+    members:
+    - phuongaz
+    - ThinkerS2k18
+...

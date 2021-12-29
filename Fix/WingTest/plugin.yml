@@ -1,0 +1,8 @@
+name: WingTest
+version: 1.0.0
+api: 3.0.0
+main: WingTest\Loader
+author: Plugin Này Do Khang Làm
+commands:
+ wingtest:
+  description: "Học Wing!"

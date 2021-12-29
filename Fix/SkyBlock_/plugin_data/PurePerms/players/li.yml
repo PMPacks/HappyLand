@@ -1,0 +1,8 @@
+---
+userName: li
+group: Guest
+permissions:
+- pocketmine.command.kick
+worlds: []
+time: -1
+...

@@ -1,0 +1,8 @@
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/Palente/LuckyBlock
+branches:
+- master
+projects:
+  LuckyBlock:
+    path: ""
+    icon: "icon.png"
+...

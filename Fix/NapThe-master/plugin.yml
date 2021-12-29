@@ -1,0 +1,13 @@
+name: NapThe  
+description: NapThe command
+author: Minuha 
+main: napthe\NapThe
+version: 1.0.0 
+api: 3.0.0 
+commands: 
+ napthe:
+  description: "NapThe C0mmand :)"
+  permission: napthe.cmd
+permissions:
+ broadcast:
+  default: true

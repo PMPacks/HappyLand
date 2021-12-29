@@ -1,0 +1,18 @@
+---
+name: ItemFrameProtector
+author: WinterBuild7074
+version: 1.0.0
+api: [3.0.0, 3.1.0, 3.2.0, 3.3.0]
+main: WinterBuild7074\ItemFrameProtector\Main
+commands:
+  itemframes:
+    description: "Change ItemFrameProtector settings"
+    permission: itemframes.tools
+  banitemframes:
+    description: "Change ItemFrameProtector settings"
+    permission: itemframes.tools
+permissions:
+  itemframes.tools:
+    default: op
+    description: "Allow to change ItemFrameProtector settings"
+...

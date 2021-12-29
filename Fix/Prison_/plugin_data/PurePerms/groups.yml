@@ -1,0 +1,277 @@
+---
+Guest:
+  alias: gst
+  inheritance: []
+  permissions:
+  - -essentials.kit
+  - -essentials.kit.other
+  - -pocketmine.command.me
+  - pchat.colored.format
+  - pchat.colored.nametag
+  - pocketmine.command.list
+  - pperms.command.ppinfo
+  worlds: []
+Admin:
+  alias: adm
+  inheritance:
+  - Guest
+  permissions:
+  - essentials.gamemode
+  - pocketmine.broadcast
+  - pocketmine.command.gamemode
+  - pocketmine.command.give
+  - pocketmine.command.kick
+  - pocketmine.command.teleport
+  - pocketmine.command.time
+  worlds: []
+Owner:
+  alias: owr
+  inheritance:
+  - Admin
+  permissions:
+  - essentials
+  - pocketmine.command
+  - pperms.command
+  worlds: []
+OP:
+  alias: op
+  inheritance: []
+  permissions:
+  - '*'
+  worlds: []
+A:
+  alias: ""
+  isDefault: true
+  inheritance: []
+  permissions:
+  - simple.command.warp.A
+  - simplewarp.command.warp.A
+  - simplewarp.warp.A
+  - simplewarp.warp.plot
+  worlds: []
+B:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.command.warp.B
+  - simplewarp.command.warp.other.B
+  - simplewarp.warp.A
+  - simplewarp.warp.B
+  - simplewarp.warp.plot
+  worlds: []
+C:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.B
+  - simplewarp.warp.C
+  - simplewarp.warp.plot
+  worlds: []
+E:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.D
+  - simplewarp.warp.E
+  - simplewarp.warp.plot
+  worlds: []
+F:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.E
+  - simplewarp.warp.F
+  - simplewarp.warp.plot
+  worlds: []
+G:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.E
+  - simplewarp.warp.G
+  - simplewarp.warp.plot
+  worlds: []
+H:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.G
+  - simplewarp.warp.H
+  - simplewarp.warp.plot
+  worlds: []
+I:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.H
+  - simplewarp.warp.I
+  - simplewarp.warp.plot
+  worlds: []
+J:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.I
+  - simplewarp.warp.J
+  - simplewarp.warp.plot
+  worlds: []
+K:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.J
+  - simplewarp.warp.K
+  - simplewarp.warp.plot
+  worlds: []
+L:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.K
+  - simplewarp.warp.L
+  - simplewarp.warp.plot
+  worlds: []
+M:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.L
+  - simplewarp.warp.M
+  - simplewarp.warp.plot
+  worlds: []
+"N":
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.M
+  - simplewarp.warp.N
+  - simplewarp.warp.plot
+  worlds: []
+O:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.N
+  - simplewarp.warp.O
+  - simplewarp.warp.plot
+  worlds: []
+P:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.O
+  - simplewarp.warp.P
+  - simplewarp.warp.plot
+  worlds: []
+Q:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.P
+  - simplewarp.warp.Q
+  - simplewarp.warp.plot
+  worlds: []
+R:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.Q
+  - simplewarp.warp.R
+  - simplewarp.warp.plot
+  worlds: []
+S:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.R
+  - simplewarp.warp.S
+  - simplewarp.warp.plot
+  worlds: []
+T:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.R
+  - simplewarp.warp.T
+  - simplewarp.warp.plot
+  worlds: []
+U:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.T
+  - simplewarp.warp.U
+  worlds: []
+V:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.U
+  - simplewarp.warp.V
+  - simplewarp.warp.plot
+  worlds: []
+W:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.V
+  - simplewarp.warp.W
+  worlds: []
+X:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.W
+  - simplewarp.warp.X
+  - simplewarp.warp.plot
+  worlds: []
+"Y":
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simple.command.warp.X
+  - simple.command.warp.Y
+  - simplewarp.warp.plot
+  worlds: []
+Z:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.Y
+  - simplewarp.warp.Z
+  - simplewarp.warp.plot
+  worlds: []
+D:
+  alias: ""
+  isDefault: false
+  inheritance: []
+  permissions:
+  - simplewarp.warp.C
+  - simplewarp.warp.D
+  - simplewarp.warp.plot
+  worlds: []
+...

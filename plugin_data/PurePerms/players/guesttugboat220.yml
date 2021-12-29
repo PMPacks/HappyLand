@@ -1,0 +1,32 @@
+---
+userName: GuestTugboat220
+group: Guest
+permissions:
+- simplewarp.command.warp.b
+- simplewarp.command.warp.c
+- simplewarp.command.warp.d
+- simplewarp.command.warp.e
+- simplewarp.command.warp.f
+- simplewarp.command.warp.g
+- simplewarp.command.warp.h
+- simplewarp.command.warp.i
+- simplewarp.command.warp.j
+- simplewarp.command.warp.k
+- simplewarp.command.warp.l
+- simplewarp.command.warp.m
+- simplewarp.command.warp.n
+- simplewarp.command.warp.o
+- simplewarp.command.warp.p
+- simplewarp.command.warp.q
+- simplewarp.command.warp.r
+- simplewarp.command.warp.s
+- simplewarp.command.warp.t
+- simplewarp.command.warp.u
+- simplewarp.command.warp.v
+- simplewarp.command.warp.w
+- simplewarp.command.warp.x
+- simplewarp.command.warp.y
+- simplewarp.command.warp.z
+worlds: []
+time: -1
+...

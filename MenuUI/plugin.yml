@@ -1,0 +1,9 @@
+name: MenuUI
+main: MenuUI\NightBlackDM\Menu
+api: 3.2.2
+version: 2.0.1
+author: NightBlackDM
+commands:
+ menuwarp:
+  description: menu
+  default: true

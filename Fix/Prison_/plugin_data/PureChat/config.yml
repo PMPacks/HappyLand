@@ -1,0 +1,100 @@
+---
+version: 1.4.10-6
+default-factions-plugin: FactionsPro
+enable-multiworld-chat: false
+groups:
+  Guest:
+    chat: '&7[Guest] &f{fac_rank}{fac_name}&a {display_name} &7> &f{msg}'
+    nametag: '&7[Guest] &f{display_name}'
+    worlds: []
+  Admin:
+    chat: '&c[Admin] &7{fac_rank}{fac_name}&6 {display_name} &d>&b {msg}'
+    nametag: '&a[Admin]&e {fac_rank}{fac_name} &6{display_name}'
+    worlds: []
+  Owner:
+    chat: '&d[Owner] &c{fac_rank}{fac_name} &b{display_name} &c>&6> &b{msg}'
+    nametag: '&d[Owner]&c {fac_rank}{fac_name} &b{display_name}'
+    worlds: []
+  OP:
+    chat: '&a[OP] &5{fac_rank}{fac_name}&b {prefix}{display_name}{suffix} &c>&6> &f{msg}'
+    nametag: '&a[OP] &c{fac_rank}{fac_name} &b{display_name}'
+    worlds: []
+  A:
+    chat: §b[§6{fac_name}§b] §a[§eA§a] §f{display_name} §e↪ §7{msg}
+    nametag: '&8&l[A]&f&r {display_name}'
+  B:
+    chat: §b[§6{fac_name}§b] §a[§eB§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[B]&f&r {display_name}'
+  C:
+    chat: §b[§6{fac_name}§b] §a[§eC§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[C]&f&r {display_name}'
+  D:
+    chat: §b[§6{fac_name}§b] §a[§eD§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[D]&f&r {display_name}'
+  E:
+    chat: §b[§6{fac_name}§b] §a[§eE§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[E]&f&r {display_name}'
+  F:
+    chat: §b[§6{fac_name}§b] §a[§eF§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[F]&f&r {display_name}'
+  G:
+    chat: §b[§6{fac_name}§b] §a[§eG§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[G]&f&r {display_name}'
+  H:
+    chat: §b[§6{fac_name}§b] §a[§eH§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[H]&f&r {display_name}'
+  I:
+    chat: §b[§6{fac_name}§b] §a[§eI§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[I]&f&r {display_name}'
+  J:
+    chat: §b[§6{fac_name}§b] §a[§eJ§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[J]&f&r {display_name}'
+  K:
+    chat: §b[§6{fac_name}§b] §a[§eK§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[K]&f&r {display_name}'
+  L:
+    chat: §b[§6{fac_name}§b] §a[§eL§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[L]&f&r {display_name}'
+  M:
+    chat: §b[§6{fac_name}§b] §a[§eM§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[M]&f&r {display_name}'
+  "N":
+    chat: §b[§6{fac_name}§b] §a[§eN§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[N]&f&r {display_name}'
+  O:
+    chat: §b[§6{fac_name}§b] §a[§eO§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[O]&f&r {display_name}'
+  P:
+    chat: §b[§6{fac_name}§b] §a[§eP§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[P]&f&r {display_name}'
+  Q:
+    chat: §b[§6{fac_name}§b] §a[§eQ§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[Q]&f&r {display_name}'
+  R:
+    chat: §b[§6{fac_name}§b] §a[§eR§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[R]&f&r {display_name}'
+  S:
+    chat: §b[§6{fac_name}§b] §a[§eS§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[S]&f&r {display_name}'
+  T:
+    chat: §b[§6{fac_name}§b] §a[§eT§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[T]&f&r {display_name}'
+  U:
+    chat: §8[{fac_name}] §a[§eU§a] §f{display_name} §e↪ §8{msg}
+    nametag: '&8&l[U]&f&r {display_name}'
+  V:
+    chat: §b[§6{fac_name}§b] §a[§eV§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[V]&f&r {display_name}'
+  W:
+    chat: §8[{fac_name}] §a[§eW§a] §f{display_name} §e↪ §8{msg}
+    nametag: '&8&l[W]&f&r {display_name}'
+  X:
+    chat: §b[§6{fac_name}§b] §a[§eX§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[X]&f&r {display_name}'
+  "Y":
+    chat: §b[§6{fac_name}§b] §a[§eY§a] §f{display_name} §e↪ §f{msg}
+    nametag: '&8&l[Y]&f&r {display_name}'
+  Z:
+    chat: §a[§f{fac_name}§a] §e[§cZ§e] §b{display_name} §e↪ §a{msg}
+    nametag: '&8&l[Z]&f&r {display_name}'
+...

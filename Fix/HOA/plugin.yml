@@ -1,0 +1,21 @@
+name: HOA
+main: H\h
+version: 2.5.0
+author: Team-GCP
+api: 3.0.0
+description: Plugin Hoacommands:
+  hoa:
+   description: "Help Hoa"
+   default: true
+  sohoa:
+   description: "Xem Hoa"
+   default: true
+  themhoa:
+   description: "Add Hoa"
+   default: op
+  truhoa:
+   description: "Reduce Hoa"
+   default: op
+  tophoa:
+   description: "Top Hoa"
+   default: true

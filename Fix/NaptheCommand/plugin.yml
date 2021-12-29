@@ -1,0 +1,11 @@
+name: NapTheBangCommand
+author: Tungsten
+version: 1
+description: plugin goi va tra loi
+main: tung\Main
+api: 3.0.0
+
+commands:
+  napthe:
+    description: "napthe"
+    usage: "/napthe (seri) (mathe) (loaithe) (menhgia)"

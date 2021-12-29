@@ -1,0 +1,65 @@
+#   _______                       __        __    __
+#  /       \                     /  |      /  |  /  |
+#  $$$$$$$  |  ______   _______  $$ |   __ $$ |  $$ |  ______
+#  $$ |__$$ | /      \ /       \ $$ |  /  |$$ |  $$ | /      \
+#  $$    $$<  $$$$$$  |$$$$$$$  |$$ |_/$$/ $$ |  $$ |/$$$$$$  |
+#  $$$$$$$  | /    $$ |$$ |  $$ |$$   $$<  $$ |  $$ |$$ |  $$ |
+#  $$ |  $$ |/$$$$$$$ |$$ |  $$ |$$$$$$  \ $$ \__$$ |$$ |__$$ |
+#  $$ |  $$ |$$    $$ |$$ |  $$ |$$ | $$  |$$    $$/ $$    $$/
+#  $$/   $$/  $$$$$$$/ $$/   $$/ $$/   $$/  $$$$$$/  $$$$$$$/
+#                                                    $$ |
+#  The easy prison rankup plugin for PocketMine-MP   $$ |
+#                                                    $$/
+
+unleash-the-rankupdoesgroups: true
+  # If you set this to false RankUpDoesGroups won't be loaded.
+  # This means that you can't set it as your groupmanager.
+  # It is highly recommended not to change this
+preferred-economy: false
+  # Set your preferred economy
+  # rankup\\economy\\Economy and rankup\\economy\\PocketMoney are available by default
+  # Set to false for autoloading (only officially supported economys will autoload).
+preferred-groupmanager: "rankup\\permission\\RankUpDoesGroups"
+  # Set your preferred group manager
+  # rankup\\permission\\RankUpDoesGroups and rankup\\permission\\PurePerms are available.
+  # RankUpDoesGroups is a super barebones alternative for users who don't use PurePerms
+
+ranks: # Define all your ranks here
+  A: 0
+  B: 10000
+  C: 20000
+  D: 30000
+  E: 50000
+  F: 80000
+  G: 120000
+  H: 170000
+  I: 230000
+  J: 270000
+  K: 330000
+  L: 370000
+  M: 450000
+  N: 520000
+  O: 650000
+  P: 720000
+  Q: 820000
+  R: 970000
+  S: 1700000
+  T: 2700000
+  U: 3500000
+  V: 4300000
+  W: 5500000
+  X: 6300000
+  Y: 7300000
+  Z: 8500000
+lang:
+  ranked-up-paid: "§l§e[§a RANK §e]§b rank của bạn được tăng lên§e %s"
+  ranked-up-free: "§l§e[§a RANK §e]§b rank của bạn được tăng lên§e %s"
+  group-add-error-paid: "§l§e[§a RANK §e]§b Nâng cấp rank thất bại, hoàn yên lại cho bạn."
+  group-add-error-free: "§l§e[§a RANK §e]§b Nâng cấp thất bại thử lại sao"
+  need-more-money-1: "§l§e[§a RANK §e]§b Bạn không đủ tiền để nâng cấp"
+  need-more-money-2: "§l§e[§a RANK §e] Bạn cần§e %s§a Yên để nâng cấp rank."
+  missing-economy: "Không thể nânh cấp ngay bây giờ.."
+  have-max-rank: "§l§e[§a RANK §e]§b Trùm cmnr up rank gì nữa :3"
+  command-permission-error: "§l§e[§a RANK §e]§c bạn không có quyền đễ up rank"
+
+

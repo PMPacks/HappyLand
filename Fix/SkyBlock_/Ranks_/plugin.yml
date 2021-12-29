@@ -1,0 +1,8 @@
+name: Ranks
+main: ConCac\Hi
+version: 1.0.1
+api: 3.2.3
+author: phuongaz
+commands:
+ muavip:
+  description: Ranks Form

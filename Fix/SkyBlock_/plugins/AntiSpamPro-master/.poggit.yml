@@ -1,0 +1,8 @@
+--- # Poggit-CI Manifest. Open the CI at http://90.116.51.244/poggit/ci/Awzaw/AntiSpamPro
+branches:
+- master
+projects:
+  AntiSpamPro:
+    path: ""
+    icon: asp.png
+...

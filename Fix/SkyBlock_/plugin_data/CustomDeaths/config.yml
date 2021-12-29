@@ -1,0 +1,6 @@
+---
+# {player} {killer} {line} {weapon}
+# above are tags you can use in the death message
+# edit this
+message: "{player} killed by {killer} using {weapon}"
+...

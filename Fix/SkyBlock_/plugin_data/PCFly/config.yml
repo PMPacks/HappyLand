@@ -1,0 +1,5 @@
+---
+fly_command.on: '&aFly enabled'
+fly_command.off: '&cFly disabled!'
+fly_eventHit_disabled: '&cNo Fly in PvP!'
+...

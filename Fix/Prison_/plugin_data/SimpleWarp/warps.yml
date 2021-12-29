@@ -1,0 +1,191 @@
+---
+B:
+  x: 348.656500
+  "y": 62.000000
+  z: -143.495400
+  level: world
+  public: false
+  metadata: []
+C:
+  x: 466.657200
+  "y": 62.000000
+  z: -121.132400
+  level: world
+  public: false
+  metadata: []
+D:
+  x: 372.584700
+  "y": 62.062500
+  z: -63.429500
+  level: world
+  public: false
+  metadata: []
+E:
+  x: 465.454000
+  "y": 62.062500
+  z: -63.028900
+  level: world
+  public: false
+  metadata: []
+F:
+  x: 459.333000
+  "y": 62.062500
+  z: 16.329900
+  level: world
+  public: false
+  metadata: []
+G:
+  x: 421.252600
+  "y": 62.000000
+  z: 93.772400
+  level: world
+  public: false
+  metadata: []
+H:
+  x: 364.289700
+  "y": 62.062500
+  z: 117.288300
+  level: world
+  public: false
+  metadata: []
+I:
+  x: 298.341700
+  "y": 62.062500
+  z: 24.613500
+  level: world
+  public: false
+  metadata: []
+J:
+  x: 472.669800
+  "y": 62.000000
+  z: -154.584800
+  level: world
+  public: false
+  metadata: []
+K:
+  x: 470.612000
+  "y": 62.000000
+  z: -217.956100
+  level: world
+  public: false
+  metadata: []
+L:
+  x: 505.574600
+  "y": 62.062500
+  z: -223.462700
+  level: world
+  public: false
+  metadata: []
+M:
+  x: 372.225700
+  "y": 62.062500
+  z: -36.338900
+  level: world
+  public: false
+  metadata: []
+"N":
+  x: 394.026800
+  "y": 62.000000
+  z: 47.483100
+  level: world
+  public: false
+  metadata: []
+O:
+  x: 753.682900
+  "y": 61.000000
+  z: -249.921200
+  level: world
+  public: false
+  metadata: []
+P:
+  x: 757.540500
+  "y": 61.000000
+  z: -186.541800
+  level: world
+  public: false
+  metadata: []
+Q:
+  x: 791.560000
+  "y": 61.062500
+  z: -254.905000
+  level: world
+  public: false
+  metadata: []
+A:
+  x: 318.436200
+  "y": 62.000000
+  z: -143.490400
+  level: world
+  public: false
+  metadata: []
+R:
+  x: 692.999500
+  "y": 61.062500
+  z: -265.636900
+  level: world
+  public: false
+  metadata: []
+S:
+  x: 686.138900
+  "y": 61.000000
+  z: -163.340900
+  level: world
+  public: false
+  metadata: []
+T:
+  x: 641.127600
+  "y": 61.062500
+  z: -111.672100
+  level: world
+  public: false
+  metadata: []
+V:
+  x: 584.504600
+  "y": 61.000000
+  z: -49.105400
+  level: world
+  public: false
+  metadata: []
+X:
+  x: 608.521400
+  "y": 61.062500
+  z: -7.682100
+  level: world
+  public: false
+  metadata: []
+"Y":
+  x: 578.081100
+  "y": 61.062500
+  z: 34.364800
+  level: world
+  public: false
+  metadata: []
+Z:
+  x: 648.441700
+  "y": 61.000000
+  z: 60.486100
+  level: world
+  public: false
+  metadata: []
+U:
+  x: 631.437700
+  "y": 61.000000
+  z: -176.442700
+  level: world
+  public: false
+  metadata: []
+W:
+  x: 602.078100
+  "y": 61.000000
+  z: -170.409700
+  level: world
+  public: false
+  metadata: []
+plot:
+  x: 15.470400
+  "y": 65.000000
+  z: 15.803900
+  level: plot
+  public: false
+  metadata: []
+...

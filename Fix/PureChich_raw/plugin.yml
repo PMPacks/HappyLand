@@ -1,0 +1,58 @@
+---
+name: PureChich
+main: _64FF00\PureChich\PureChich
+version: 1.4.2-c2a
+api:
+- 3.0.0
+load: POSTWORLD
+author: 64FF00 & ProjectInfinity
+website: https://github.com/PurePlugins/PureChich
+permissions:
+  pchich:
+    description: 'PureChich by 64FF00! (Twitter: @64FF00)'
+    children:
+      pchich.command:
+        description: Allows you to use all PureChich commands.
+        children:
+          pchich.command.addgroup:
+            description: Allows you to add a new group to the groups list.
+          pchich.command.addparent:
+            description: Allows you to add a group to another group inheritance list.
+          pchich.command.defgroup:
+            description: Allows you to set the default group manually.
+          pchich.command.fperms:
+            description: Allows you to find permissions for a specific plugin.
+          pchich.command.groups:
+            description: Allows you to see a list of all groups.
+          pchich.command.listgperms:
+            description: Allows you to see a list of all permissions from a group.
+          pchich.command.listuperms:
+            description: Allows you to see a list of all permissions from a user.
+          pchich.command.ppinfo:
+            default: true
+            description: Allows you to get current PureChich information.
+          pchich.command.ppreload:
+            description: Allows you to reload all PureChich configurations.
+          pchich.command.rmgroup:
+            description: Allows you to remove a group from the groups list.
+          pchich.command.rmparent:
+            description: Allows you to remove a group from another group inheritance
+              list.
+          pchich.command.setgperm:
+            description: Allows you to add a permission to the group.
+          pchich.command.setgroup:
+            description: Allows you to set group for a user.
+          pchich.command.setuperm:
+            description: Allows you to add a permission to a user.
+          pchich.command.unsetgperm:
+            description: Allows you to remove a permission from the group.
+          pchich.command.unsetuperm:
+            description: Allows you to remove a permission from the user.
+          pchich.command.usrinfo:
+            description: Allows you to see info about a user.
+      pchich.noeul:
+        description: Allows you to access all 'Noeul' related features.
+        children:
+          pchich.noeul.ppsudo:
+            description: Allows you to use the Noeul 'ppsudo' command.
+...

@@ -1,0 +1,11 @@
+---
+name: BossAnnouncement
+main: xenialdan\BossAnnouncement\Main
+version: 1.1.5
+api:
+- 3.0.0-ALPHA9
+- 3.0.1
+load: POSTWORLD
+authors:
+- XenialDan
+...

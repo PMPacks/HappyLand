@@ -1,0 +1,11 @@
+name: Prison
+author: Fycarman(Làm Lại Bởi Khang)
+version: 1.1
+main: Prison\Main
+api: 3.0.0
+depend: [PurePerms, MineReset, EconomyAPI]
+description: "Prison plugin"
+permissions:
+  prison.setrank:
+    description: "Allows to use /setrank command"
+    default: op

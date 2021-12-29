@@ -1,0 +1,5 @@
+---
+pvp: false
+bancmds:
+  /me: /me
+...

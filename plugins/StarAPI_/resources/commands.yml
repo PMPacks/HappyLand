@@ -1,0 +1,9 @@
+---
+        star: Để xem star của bạn
+		setstar: Đặc số star của người chơi
+		givestar: Thêm star cho người chơi
+		restar: Xóa star của người chơi
+		topstar: Xem xếp hạng star của máy chủ
+		viewstar:  Xem star của người chơi
+		paystar: chuyển stat cho người chơi khác
+...

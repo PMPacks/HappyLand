@@ -1,0 +1,34 @@
+---
+#=================================
+#{name}-        ชื่อในเกม (name in game) <<<<<<<
+#{group} -      ยศ (group) <<<<<<<
+#{faction} -    แคลน (factions) <<<<<<<
+#{money} -      เงิน (money) <<<<<<<
+#{gm} -         เกมโหมด (gamemode) <<<<<<
+#{ip} -         ip ของผู้เล่น (ip address) <<<<<<<
+#{online} -     จำนวนที่ออนไลน์ (players) <<<<<<
+#{max_online} - max ออนไลน์ (max players) <<<<<<<
+#{hp} -         สถานะสุขภาพ (health) <<<<<<<
+#{maxhp} -      max สุขภาพ (max health) <<<<<<<
+#{x}/{y}/{z} -  พิกัด (position xyz) <<<<<<<
+#{level} -      ชื่อโลก (world name) <<<<<<<
+#{time} -       เวลา (time) <<<<<<<
+#{id}:{ids} -   ID item (id item) <<<<<<<
+#{item} -       ชื่อ item (name item) <<<<<<<
+#{tps} -        TPS เซิร์ฟเวอร์ (current tps) <<<<<<<
+#{usage}-       USAGE เซิร์ฟเวอร์ (server usage) <<<<<<<
+#{tag} -        บนหัว (name tag) <<<<<<<
+#{kills} -      จำนวนฆาตกรรมทั้งหมด (kills) <<<<<<<
+#{deaths} -     ตายรวม (deaths) <<<<<<<
+#{ping} -       แสดงปิงในเซิฟ (ping) <<<<<<<<
+#{R1}-{R23} -   สุ่มสีข้อความ มี{R1}ถึง{R23} (random colors have {R1} - {R23}) <<<<<<
+#{h} -          บาร์ทำให้ชิดขวา[ใส่ทุกครั้งที่ใช้ \n ] (make bar right) <<<<<<
+#{n} -          ยกบาร์ขึ้น (raise the bar) <<<<<<
+#\n -           ขึ้นบรรทัดใหม่ (new line) <<<<<<<<
+
+#=================================
+
+bar: "{h}§l◥ §d❖ ◤ {R1}ＡＵＲＡ {R3}ＫＩＮＧＤＯＭ§r§l§b◥ §d❖§b ◤\n§6✈§a Xin Chào:§b {name}\n§6✈§a Yên:§b {money}\n§6✈§a Point:§b {point}\n§6✈§a Guild:§b {faction}\n§6✈§a PING:§b {ping}"
+
+#=================================
+...

@@ -1,0 +1,17 @@
+---
+userName: LucidThienAn
+group: Guest
+permissions:
+- simplewarp.command.warp.b
+- simplewarp.command.warp.c
+- simplewarp.command.warp.d
+- simplewarp.command.warp.e
+- simplewarp.command.warp.f
+- simplewarp.command.warp.g
+- simplewarp.command.warp.h
+- simplewarp.command.warp.f
+- simplewarp.command.warp.f
+worlds: []
+time: -1
+expTime: -1
+...

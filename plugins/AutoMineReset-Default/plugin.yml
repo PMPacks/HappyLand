@@ -1,0 +1,15 @@
+name: AutoMineReset
+main: AndreasHGK\AutoMineReset\Main
+version: 0.3.4
+api: [3.0.0]
+load: POSTWORLD
+description: Makes your mines reset after a certain amount of time
+commands:
+ mr:
+  description: "Short command to reset all mines!"
+  usage: "/mr"
+  permission: minereset.command.resetall
+ autoreset:
+  description: "Enable / disable autoreset"
+  usage: "/autoreset"
+  permission: amr.autoreset

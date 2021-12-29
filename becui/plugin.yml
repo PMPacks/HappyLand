@@ -1,0 +1,11 @@
+name: PhuPhepUI
+main: MrDinoDuck\PhuPhepUI\Main
+version: 0.0.1
+api: 3.5.7
+load: POSTWORLD
+author: MrDinoDuck
+description: "BuyECUI"
+commands:
+ buyec:
+  description: "Mở Hệ Thống BuyecUI"
+  usage: "/buyec"

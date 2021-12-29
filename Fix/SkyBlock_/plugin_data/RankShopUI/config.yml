@@ -1,0 +1,103 @@
+---
+
+# THE NAME OF THE RANKS#
+
+rank1: "Rank1"
+rank2: "Rank2"
+rank3: "Rank3"
+rank4: "Rank4"
+rank5: "Rank5"
+rank6: "Rank6"
+rank7: "Rank7"
+rank8: "Rank8"
+rank9: "Rank9"
+rank10: "Rank10"
+
+# THE PRICE OF THE RANKS#
+
+rank1.cost: 1000000
+rank2.cost: 2000000
+rank3.cost: 3000000
+rank4.cost: 4000000
+rank5.cost: 5000000
+rank6.cost: 6000000
+rank7.cost: 7000000
+rank8.cost: 8000000
+rank9.cost: 9000000
+rank10.cost: 10000000
+
+# Text if the request was cancelled #
+
+cancelled: "§cYou left RankShopUI"
+
+# rank1 MESSAGE #
+
+rank1.content: "§fAre you sure you want to continue buying rank1 Rank? It costs §2$1000000."
+rank1.buy.success: "§aYou've successfully bought rank1 Rank for §2$1000000."
+rank1.no.money: "§cYou don't have enough money to buy rank1 Rank."
+rank1.cancelled: "§cYou've cancelled buying rank1 Rank."
+
+# rank2 MESSAGE #
+
+rank2.content: "§fAre you sure you want to continue buying rank2 Rank? It costs §2$2000000."
+rank2.buy.success: "§aYou've successfully bought rank2 Rank for §2$2000000."
+rank2.no.money: "§cYou don't have enough money to buy rank2 Rank."
+rank2.cancelled: "§cYou've cancelled buying rank2 Rank."
+
+# rank3 MESSAGE #
+
+rank3.content: "§fAre you sure you want to continue buying rank3 Rank? It costs §2$3000000."
+rank3.buy.success: "§aYou've successfully bought rank3 Rank for §2$3000000."
+rank3.no.money: "§cYou don't have enough money to buy rank3 Rank."
+rank3.cancelled: "§cYou've cancelled buying rank3 Rank."
+
+# rank4 MESSAGE #
+
+rank4.content: "§fAre you sure you want to continue buying rank4 Rank? It costs §2$4000000."
+rank4.buy.success: "§aYou've successfully bought rank4 Rank for §2$4000000."
+rank4.no.money: "§cYou don't have enough money to buy rank4 Rank."
+rank4.cancelled: "§cYou've cancelled buying rank4 Rank."
+
+# rank5 MESSAGE #
+
+rank5.content: "§fAre you sure you want to continue buying rank5 Rank? It costs §2$5000000."
+rank5.buy.success: "§aYou've successfully bought rank5 Rank for §2$5000000."
+rank5.no.money: "§cYou don't have enough money to buy rank5 Rank."
+rank5.cancelled: "§cYou've cancelled buying rank5 Rank."
+
+# rank6 MESSAGE #
+
+rank6.content: "§fAre you sure you want to continue buying rank6 Rank? It costs §2$6000000."
+rank6.buy.success: "§aYou've successfully bought rank6 Rank for §2$6000000."
+rank6.no.money: "§cYou don't have enough money to buy rank6 Rank."
+rank6.cancelled: "§cYou've cancelled buying rank6 Rank."
+
+# rank7 MESSAGE #
+
+rank7.content: "§fAre you sure you want to continue buying rank7 Rank? It costs §2$7000000."
+rank7.buy.success: "§aYou've successfully bought rank7 Rank for §2$7000000."
+rank7.no.money: "§cYou don't have enough money to buy rank7 Rank."
+rank7.cancelled: "§cYou've cancelled buying rank7 Rank."
+
+# rank8 MESSAGE #
+
+rank8.content: "§fAre you sure you want to continue buying rank8 Rank? It costs §2$8000000."
+rank8.buy.success: "§aYou've successfully bought rank8 Rank for §2$8000000."
+rank8.no.money: "§cYou don't have enough money to buy rank8 Rank."
+rank8.cancelled: "§cYou've cancelled buying rank8 Rank."
+
+# rank9 MESSAGE #
+
+rank9.content: "§fAre you sure you want to continue buying rank9 Rank? It costs §2$9000000."
+rank9.buy.success: "§aYou've successfully bought rank9 Rank for §2$9000000."
+rank9.no.money: "§cYou don't have enough money to buy rank9 Rank."
+rank9.cancelled: "§cYou've cancelled buying rank9 Rank."
+
+# rank10 MESSAGE #
+
+rank10.content: "§fAre you sure you want to continue buying rank10 Rank? It costs §2$10000000."
+rank10.buy.success: "§aYou've successfully bought rank10 Rank for §2$10000000."
+rank10.no.money: "§cYou don't have enough money to buy rank10 Rank."
+rank10.cancelled: "§cYou've cancelled buying rank10 Rank."
+
+...

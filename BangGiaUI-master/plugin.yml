@@ -1,0 +1,11 @@
+name: Khang
+main: Khang\Main
+version: 1.0
+api: 3.0.0, 3.0.1, 3.2.1, 4.0.0
+author: KNMiner
+description: Bảng Giá UI Của Server
+
+commands:
+    banggia:
+     usage: /banggia
+     description: §6Bảng Giá Của Server!!!

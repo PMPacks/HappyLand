@@ -1,0 +1,168 @@
+---
+crates:
+# HUGE THANKS TO @DaPigGuy and his PiggyCrates plugin for making multiple crates possible.
+#
+# Disclaimer: Some part of this code has been taken from @DaPigGuy's plugin,
+# I have asked his permission to use his code as a reference before hand as to avoid
+# unnecessary complains and/or contradictions.
+#
+# To reward the player with a command make sure that the meta of the reward is same as
+# commandMeta set in config.yml or else the command won't work.
+#
+# Example on how to set the config.
+# Note: Please use tabs instead of spaces.
+#-------------------------------------------------------------------------------------------------------------------------------
+# example:               | Set the name of the crate.
+#  drops:                | List the items that can be received from the crate.
+#   - name: "G-Helmet"   | Custom name for the item. Use "§" for adding colors.
+#     id: 1              | ID of the reward.
+#     meta: 0            | Meta or Damage value of the Item.
+#     amount: 1          | The amount of Item that player receives.
+#     enchantments:      | Set enchants for items here. Both VanillaEnchantments and PiggyCustomEnchants are supported.
+#       protection:      | Name of enchant you wish to apply.
+#         level: 3       | The level for enchant.
+#       unbreaking:      | You can set multiple enchants as long as they are registered.
+#         level: 2       | NOTE: If you donot want enchants simply remove the enchantments heading.
+#     lore: "USE ME"     | Add a custom lore to the reward. Use "\n" for next line.
+#     commands:          | Add commands to execute when player wins a reward. Multiple commands supported.
+#     - "say hi"         | Use \"%PLAYER%\" to insert player name (with the quotes and slash).
+#     - "say test"       | Don't forget to mention the maxCommands in config.yml.
+#  block: "911:0"        | Set the block ID you want the crate to represent. Placing a chest on it will activate the crate.
+# ------------------------------------------------------------------------------------------------------------------------------
+  crates:
+    drops:
+      - name: "§c§l❖§e Kiếm Thần §c❖"
+        id: 276
+        meta: 0
+        amount: 1
+        enchantments:
+          sharpness:
+            level: 5
+          fireaspect:
+            level: 5
+          knockback:
+            level: 5
+          unbreaking:
+            level: 5
+        lore: "§e§l✎§b Kiếm hiếm lắm nha\n§e§l✎§b Rất khó tìm không nên cho hoặc ném"
+      - name: "§c§l❖§e Cúp Thần §c❖"
+        id: 278
+        meta: 0
+        amount: 1
+        enchantments:
+          efficiency:
+            level: 5
+          unbreaking:
+            level: 5
+          fortune:
+            level: 5
+        lore: "§e§l✎§b Cúp hiếm\n§e§l✎§b Không thích cứ vứt :v"
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 100000"
+        - "say §e\"%PLAYER%\"§b đã nhận được $100,000 khi quay tay."
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 10000"
+        - "say §e\"%PLAYER%\"§b đã nhận được $10,000 khi quay tay."
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 50000"
+        - "say §e\"%PLAYER%\"§b đã nhận được $50,000 khi quay tay."
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 5000"
+        - "say §e\"%PLAYER%\"§b đã nhận được $5,000 khi quay tay."
+      - name: "Block of Diamond "
+        id: 57
+        meta: 0
+        amount: 64
+      - name: "Block of Iron"
+        id: 42
+        meta: 0
+        amount: 64
+      - name: "Block of Gold"
+        id: 41
+        meta: 0
+        amount: 64
+      - name: "Block of Emerald"
+        id: 133
+        meta: 0
+        amount: 64
+      - name: "Cục j đó tự biết"
+        id: 1
+        meta: 0
+        amount: 64
+      - name: "§c§l❖§e Kiếm Cùi §c❖"
+        id: 276
+        meta: 0
+        amount: 1
+        enchantments:
+          sharpness:
+            level: 20
+          knockback:
+            level: 20
+          unbreaking:
+            level: 20
+          fireaspect:
+            level: 20
+        lore: "§e§l✎§b Kiếm rất cùi\n§e§l✎§b Không cần cứ ném"
+      - name: "§c§l❖§e Cúp Cùi §c❖"
+        id: 278
+        meta: 0
+        amount: 1
+        enchantments:
+          efficiency:
+            level: 20
+          fortune:
+            level: 20
+          unbreaking:
+            level: 20
+        lore: "§e§l✎§b Cúp rất cùi\n§e§l✎§b Không cần vứt đi"
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 1000"
+        - "say §e\"%PLAYER%\"§b đã nhận được $1,000 khi quay tay."
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 5000"
+        - "say §e\"%PLAYER%\"§b đã nhận được $5,000 khi quay tay."
+      - name: "Money Drop"
+        id: 339
+        meta: 50
+        amount: 1
+        commands:
+        - "givemoney \"%PLAYER%\" 500"
+        - "say §e\"%PLAYER%\"§b đã nhận được $500 khi quay tay."
+      - name: "Cục j đó tự biết"
+        id: 133
+        meta: 0
+        amount: 64
+      - name: "Cục j đó tự biết"
+        id: 41
+        meta: 0
+        amount: 64
+      - name: "Elytra"
+        id: 444
+        meta: 0
+        amount: 1
+    block: "4:0"
+...

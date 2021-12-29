@@ -1,0 +1,16 @@
+---
+nicks:
+player:
+  default: true
+  chatformat: '§7[Player]§f %player%§7: %msg%'
+  nametag: §7[Player]§f %player%
+  permissions:
+  - test.command
+admin: 
+  default: false
+  chatformat: '§a§l[§bADMIN§a]§f %player%§a:§6 %msg%'
+  nametag: §a§l[§bADMIN§a]§f %player%
+  permissions:
+  - pocketmine.command.kick
+  - pocketmine.command.ban
+...

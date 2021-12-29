@@ -1,0 +1,16 @@
+#Positions of the floating texts
+Positions:
+    - world: RustedSpawn
+      x: -11.4
+      "y": 148.0
+      z: 2.5
+#API-Key of your server provided by minecraftpocket-servers.com
+API-Key: "tDS9mPRPV0bLwKkABjc5JtZPiduuFWI0lMX"
+#Amount of voters who shall be shown (Max: 500)
+Amount: 8
+#Update interval of the query to the server in seconds
+Update-Interval: 60
+#Header of the floating text particle
+Header: "§l§c❤ §6Top Votes của tháng §c❤"
+#Text for every row after the header
+Text: "§l§b| §a{player}§b | §e{votes}§b |"

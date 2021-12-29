@@ -1,0 +1,66 @@
+<?php
+namespace TimeCommander;
+
+use pocketmine\command\ConsoleCommandSender;
+use pocketmine\event\Listener;
+use pocketmine\plugin\PluginBase;
+use pocketmine\utils\Config;
+
+class Main extends PluginBase implements Listener {
+
+    public function onEnable(){
+        @mkdir($this->getDataFolder());
+        $this->saveResource("commands.yml");
+        $this->getCommandsConfig = new Config($this->getDataFolder() . "commands.yml", Config::YAML);
+        $commandsConfig = $this->getCommandsConfig()->getAll();
+        foreach ($commandsConfig["Commands"] as $var){
+            $this->getScheduler()->scheduleRepeatingTask(new runCommand($this, $var["Command"]), $var["Time"]);
+            # $var as I do not know what to call it...
+            # $var["Command"] calls the user inputted commands, and  $var["Time"] is the user inputted times.
+        }
+    }
+
+    public function executeCommand($command){
+        $this->getServer()->dispatchCommand(new ConsoleCommandSender(), $command);
+    }
+
+    public function getCommandsConfig(){
+        return $this->getCommandsConfig;
+    }
+}# TimeCommander
+#
+# Command: Command to execute
+# Time: Amount of time in ticks until command is executed
+
+Commands:
+  - Command: say 1
+    Time: 100
+  - Command: say 2
+    Time: 200
+  - Command: say 3
+    Time: 300<?php
+namespace TimeCommander;
+use pocketmine\scheduler\Task;
+
+class runCommand extends Task {
+    private $plugin;
+
+    public function __construct(Main $plugin, $command){
+        //parent::__construct($plugin);
+        $this->plugin = $plugin;
+        $this->command = $command;
+        $this->cmdStart = 0;
+    }
+
+    public function onRun($tick){
+        if($this->cmdStart === 1){
+            $this->getPlugin()->executeCommand($this->command);
+        } else {
+            $this->cmdStart = 1;
+        }
+    }
+
+    public function getPlugin(){
+        return $this->plugin;
+    }
+}

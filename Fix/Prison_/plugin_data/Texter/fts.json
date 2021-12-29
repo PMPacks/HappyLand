@@ -1,0 +1,136 @@
+{
+    "world": {
+        "a": {
+            "Xvec": "314.6",
+            "Yvec": "65.2",
+            "Zvec": "-143.4",
+            "TITLE": "§l§aMine§c A",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "b": {
+            "Xvec": "348.4",
+            "Yvec": "64.8",
+            "Zvec": "-141.0",
+            "TITLE": "§l§aMine §cB",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "c": {
+            "Xvec": "466.7",
+            "Yvec": "64.7",
+            "Zvec": "-117.0",
+            "TITLE": "§l§aMine§c C",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "d": {
+            "Xvec": "373.7",
+            "Yvec": "64.0",
+            "Zvec": "-69.8",
+            "TITLE": "§l§aMine§c D",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "e": {
+            "Xvec": "465.6",
+            "Yvec": "65.6",
+            "Zvec": "-55.5",
+            "TITLE": "§l§aMine§c E",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "f": {
+            "Xvec": "459.4",
+            "Yvec": "65.8",
+            "Zvec": "10.0",
+            "TITLE": "§l§aMine§c F",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "i": {
+            "Xvec": "303.6",
+            "Yvec": "65.6",
+            "Zvec": "24.6",
+            "TITLE": "§l§aMine§c I",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "n": {
+            "Xvec": "394.0",
+            "Yvec": "65.2",
+            "Zvec": "41.3",
+            "TITLE": "§l§aMine§c N",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "l": {
+            "Xvec": "513.2",
+            "Yvec": "65.3",
+            "Zvec": "-223.4",
+            "TITLE": "§l§aMine§c L",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "o": {
+            "Xvec": "754.6",
+            "Yvec": "64.7",
+            "Zvec": "-252.8",
+            "TITLE": "§l§aMine§c O",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "p": {
+            "Xvec": "757.5",
+            "Yvec": "64.4",
+            "Zvec": "-190.2",
+            "TITLE": "§l§aMine§c P",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "q": {
+            "Xvec": "796.7",
+            "Yvec": "65.5",
+            "Zvec": "-256.1",
+            "TITLE": "§l§aMine§c Q",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        },
+        "u": {
+            "Xvec": "631.4",
+            "Yvec": "63.8",
+            "Zvec": "-171.6",
+            "TITLE": "§l§aMine§c U",
+            "TEXT": "",
+            "OWNER": "phuongaz"
+        }
+    },
+    "FakeLoby": {
+        "welcome": {
+            "Xvec": "19.9",
+            "Yvec": "9.5",
+            "Zvec": "19.7",
+            "TITLE": "§l§e-=+=-§a AURA KINGDOM §e-=+=-",
+            "TEXT": "§l§e↪§6 Chào mừng bạn\n§l§e↪§a§l§b IP:§e Play.aurakingdom.tk\n§l§c ❤§6 VOTE:§d bit.do/akd-vote\n§l§a⚒§b Thể Loại:§6 Prison",
+            "OWNER": "phuongaz"
+        },
+        "yp": {
+            "Xvec": "25.8",
+            "Yvec": "9.1",
+            "Zvec": "25.7",
+            "TITLE": "top",
+            "TEXT": "top",
+            "OWNER": "phuongaz"
+        }
+    },
+    "plot": {
+        "plot": {
+            "Xvec": "232.1",
+            "Yvec": "67.3",
+            "Zvec": "267.9",
+            "TITLE": "§l§a-+=+§e PLOT §a+=+-",
+            "TEXT": "§l§c❤§d /plot auto§b để tìm một plot trống\n§l§c❤§d /plot claim§b để nhận plot trống bạn đang đứng\n§l§c❤§d /plot warp [X;Z]§b Dịch chuyển đến plot khác\n§l§c❤§d /plot info§b xem thông tin plot đang đứng",
+            "OWNER": "phuongaz"
+        }
+    }
+}

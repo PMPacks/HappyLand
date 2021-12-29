@@ -1,0 +1,14 @@
+name: CustomItem
+main: custom\Main
+author: Phuongaz
+api:
+ - 3.0.0-ALPHA12
+ - 3.0.1
+version: 1.0
+commands:
+ setlore:
+  default: op
+  description: "set lore item"
+ setname:
+  default: op
+  description: "set name item"
